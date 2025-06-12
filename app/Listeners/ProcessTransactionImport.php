@@ -68,12 +68,12 @@ class ProcessTransactionImport implements ShouldQueue
 
                 Log::info('Lote de transações importado', ['wallet_id' => $wallet->id, 'offset' => $offset, 'imported' => $importedTransactions]);
 
-                // Aguardar 30 segundos antes do próximo lote
-                sleep(30);
+                // Aguardar 3 segundos antes do próximo lote (reduzido de 30s para 3s)
+                sleep(3);
             } catch (\Exception $e) {
                 Log::error('Erro durante importação paginada de transações', ['wallet_id' => $wallet->id, 'error' => $e->getMessage(), 'offset' => $offset]);
-                // Em caso de erro, aguardar 30 segundos antes de tentar novamente
-                sleep(30);
+                // Em caso de erro, aguardar 3 segundos antes de tentar novamente (reduzido de 30s para 3s)
+                sleep(3);
             }
         }
 

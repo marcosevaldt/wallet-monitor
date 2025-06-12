@@ -30,8 +30,8 @@ class BlockchainApiService
         $url = $this->baseUrl . 'balance?active=' . $address;
         $response = $this->makeRequest($url);
 
-        if (isset($response['addresses'][0]['final_balance'])) {
-            return $response['addresses'][0]['final_balance'];
+        if (isset($response[$address]['final_balance'])) {
+            return $response[$address]['final_balance'];
         }
 
         return 0;
@@ -74,6 +74,7 @@ class BlockchainApiService
             'type' => $type,
             'address' => $address,
             'value' => $value,
+            'block_height' => $tx['block_height'] ?? null,
             'block_time' => $blockTime,
         ];
 
@@ -86,7 +87,11 @@ class BlockchainApiService
 
             if (!$exists) {
                 Transaction::create($transactionData);
-                Log::info('Transação salva com sucesso', ['wallet_id' => $wallet->id, 'tx_hash' => $tx['hash']]);
+                Log::info('Transação salva com sucesso', [
+                    'wallet_id' => $wallet->id, 
+                    'tx_hash' => $tx['hash'],
+                    'block_height' => $transactionData['block_height']
+                ]);
             } else {
                 Log::info('Transação já existe, pulando', ['wallet_id' => $wallet->id, 'tx_hash' => $tx['hash']]);
             }
@@ -98,9 +103,9 @@ class BlockchainApiService
     protected function makeRequest(string $url, int $attempt = 1)
     {
         try {
-            // Delay adicional para rate limiting
+            // Delay adicional para rate limiting (reduzido)
             if ($attempt > 1) {
-                $delay = pow(2, $attempt - 1) * 10; // 10s, 20s, 40s
+                $delay = pow(2, $attempt - 1) * 2; // 2s, 4s, 8s (reduzido de 10s, 20s, 40s)
                 Log::info('Aguardando antes de nova tentativa', ['url' => $url, 'attempt' => $attempt, 'delay' => $delay]);
                 sleep($delay);
             }
@@ -112,7 +117,7 @@ class BlockchainApiService
             }
 
             if ($response->status() === 429 && $attempt <= $this->retries) {
-                $delay = pow(2, $attempt - 1) * 30; // Backoff exponencial: 30s, 60s, 120s
+                $delay = pow(2, $attempt - 1) * 5; // Backoff exponencial: 5s, 10s, 20s (reduzido de 30s, 60s, 120s)
                 Log::warning('Limite de taxa atingido, aguardando antes de nova tentativa', ['url' => $url, 'attempt' => $attempt, 'delay' => $delay]);
                 sleep($delay);
                 return $this->makeRequest($url, $attempt + 1);
@@ -123,7 +128,7 @@ class BlockchainApiService
         } catch (\Exception $e) {
             Log::error('Exceção ao fazer requisição para a API', ['url' => $url, 'error' => $e->getMessage()]);
             if ($attempt <= $this->retries) {
-                $delay = pow(2, $attempt - 1) * 15; // 15s, 30s, 60s
+                $delay = pow(2, $attempt - 1) * 3; // 3s, 6s, 12s (reduzido de 15s, 30s, 60s)
                 Log::warning('Erro de conexão, aguardando antes de nova tentativa', ['url' => $url, 'attempt' => $attempt, 'delay' => $delay]);
                 sleep($delay);
                 return $this->makeRequest($url, $attempt + 1);

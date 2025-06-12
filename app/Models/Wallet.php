@@ -28,8 +28,6 @@ class Wallet extends Model
         'last_import_at',
         'send_transactions',
         'receive_transactions',
-        'input_transactions',
-        'output_transactions',
     ];
 
     /**
@@ -67,14 +65,5 @@ class Wallet extends Model
         $outputs = $this->transactions()->where('type', 'output')->sum('value');
         
         return ($inputs - $outputs) / 100000000; // Converter para BTC
-    }
-
-    /**
-     * Formata o saldo em formato legível.
-     */
-    public function getFormattedBalanceAttribute(): string
-    {
-        $balance = $this->balance ?? 0;
-        return number_format($balance / 100000000, 8) . ' BTC';
     }
 } 

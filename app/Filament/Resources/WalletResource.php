@@ -23,6 +23,8 @@ class WalletResource extends Resource
 
     protected static ?string $navigationLabel = 'Carteiras';
 
+    protected static ?string $navigationGroup = 'Portfólio';
+
     protected static ?string $modelLabel = 'Carteira';
 
     protected static ?string $pluralModelLabel = 'Carteiras';
@@ -119,28 +121,51 @@ class WalletResource extends Resource
                     ->copyable()
                     ->copyMessage('Endereço copiado!')
                     ->copyMessageDuration(1500)
-                    ->limit(20)
+                    ->formatStateUsing(function ($state) {
+                        if (strlen($state) > 16) {
+                            return substr($state, 0, 8) . '...' . substr($state, -8);
+                        }
+                        return $state;
+                    })
                     ->tooltip(function (Tables\Columns\TextColumn $column): ?string {
                         $state = $column->getState();
-                        if (strlen($state) > 20) {
+                        if (strlen($state) > 16) {
                             return $state;
                         }
                         return null;
-                    }),
+                    })
+                    ->size('sm'),
                 
                 Tables\Columns\TextColumn::make('label')
-                    ->searchable(),
+                    ->label('Rótulo')
+                    ->searchable()
+                    ->toggleable(isToggledHiddenByDefault: true),
                 
                 Tables\Columns\TextColumn::make('balance')
                     ->label('Saldo (BTC)')
                     ->numeric()
                     ->sortable()
                     ->formatStateUsing(fn ($state) => number_format(($state ?? 0) / 100000000, 8))
-                    ->description(fn ($record) => $record->formatted_balance)
                     ->color(fn ($state) => ($state ?? 0) > 0 ? 'success' : 'danger'),
                 
+                Tables\Columns\BadgeColumn::make('import_status')
+                    ->label('Status')
+                    ->getStateUsing(function ($record) {
+                        if ($record->import_progress == -2) return 'Truncado';
+                        if ($record->import_progress == -1) return 'Erro';
+                        if ($record->import_progress == 100) return 'Concluída';
+                        if ($record->import_progress > 0) return 'Em Andamento';
+                        return 'Não Iniciada';
+                    })
+                    ->colors([
+                        'danger' => ['Truncado', 'Erro'],
+                        'success' => 'Concluída',
+                        'warning' => 'Em Andamento',
+                        'gray' => 'Não Iniciada',
+                    ]),
+                
                 Tables\Columns\TextColumn::make('import_progress')
-                    ->label('Progresso Importação')
+                    ->label('Progresso')
                     ->numeric()
                     ->suffix('%')
                     ->sortable()
@@ -157,173 +182,178 @@ class WalletResource extends Resource
                         default => $state,
                     })
                     ->description(fn ($record) => match (true) {
-                        $record->import_progress == -2 => 'Limite da API excedido (máx. 5000 transações)',
+                        $record->import_progress == -2 => 'Limite da API excedido',
                         $record->import_progress == -1 => 'Erro na importação',
                         default => $record->imported_transactions . '/' . $record->total_transactions,
                     }),
                 
-                Tables\Columns\TextColumn::make('imported_transactions')
-                    ->label('Transações Importadas')
-                    ->numeric()
-                    ->sortable()
-                    ->color('info'),
-                
-                Tables\Columns\TextColumn::make('total_transactions')
-                    ->label('Total Transações')
-                    ->numeric()
-                    ->sortable()
-                    ->color('gray'),
-                
-                Tables\Columns\TextColumn::make('send_transactions')
-                    ->label('Enviadas')
-                    ->numeric()
-                    ->sortable()
-                    ->color('danger')
-                    ->description('Transações de envio'),
-                
-                Tables\Columns\TextColumn::make('receive_transactions')
-                    ->label('Recebidas')
-                    ->numeric()
-                    ->sortable()
-                    ->color('success')
-                    ->description('Transações de recebimento'),
-                
-                Tables\Columns\TextColumn::make('input_transactions')
-                    ->label('Inputs')
-                    ->numeric()
-                    ->sortable()
-                    ->color('warning')
-                    ->description('Transações de entrada')
-                    ->toggleable(isToggledHiddenByDefault: true),
-                
-                Tables\Columns\TextColumn::make('output_transactions')
-                    ->label('Outputs')
-                    ->numeric()
-                    ->sortable()
-                    ->color('info')
-                    ->description('Transações de saída')
+                Tables\Columns\TextColumn::make('transactions_summary')
+                    ->label('Transações')
+                    ->getStateUsing(function ($record) {
+                        $send = $record->send_transactions ?? 0;
+                        $receive = $record->receive_transactions ?? 0;
+                        return "📤 {$send} | 📥 {$receive}";
+                    })
+                    ->description(fn ($record) => 'Enviadas | Recebidas')
                     ->toggleable(isToggledHiddenByDefault: true),
                 
                 Tables\Columns\TextColumn::make('last_import_at')
                     ->label('Última Importação')
                     ->dateTime('d/m/Y H:i')
                     ->sortable()
-                    ->color(fn ($state) => $state ? 'success' : 'gray'),
-                
-                Tables\Columns\BadgeColumn::make('import_status')
-                    ->label('Status Importação')
-                    ->getStateUsing(function ($record) {
-                        if ($record->import_progress == -2) return 'Truncado';
-                        if ($record->import_progress == -1) return 'Erro';
-                        if ($record->import_progress == 100) return 'Concluída';
-                        if ($record->import_progress > 0) return 'Em Andamento';
-                        return 'Não Iniciada';
-                    })
-                    ->colors([
-                        'danger' => ['Truncado', 'Erro'],
-                        'success' => 'Concluída',
-                        'warning' => 'Em Andamento',
-                        'gray' => 'Não Iniciada',
-                    ]),
-                
-                Tables\Columns\TextColumn::make('formatted_balance')
-                    ->label('Saldo')
-                    ->badge()
-                    ->color(fn (string $state): string => match (true) {
-                        str_contains($state, '-') => 'danger',
-                        str_contains($state, '0.00000000') => 'gray',
-                        default => 'success',
-                    })
-                    ->sortable(query: function (Builder $query, string $direction): Builder {
-                        return $query->orderBy('id', $direction);
-                    }),
-                
-                Tables\Columns\TextColumn::make('transactions_count')
-                    ->label('Transações')
-                    ->counts('transactions')
-                    ->sortable(),
+                    ->color(fn ($state) => $state ? 'success' : 'gray')
+                    ->toggleable(isToggledHiddenByDefault: true),
                 
                 Tables\Columns\TextColumn::make('created_at')
                     ->label('Criado em')
                     ->dateTime('d/m/Y H:i')
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
-                
-                Tables\Columns\TextColumn::make('updated_at')
-                    ->label('Atualizado em')
-                    ->dateTime('d/m/Y H:i')
-                    ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
-                //
+                Tables\Filters\SelectFilter::make('import_status')
+                    ->label('Status de Importação')
+                    ->options([
+                        'not_started' => 'Não Iniciada',
+                        'in_progress' => 'Em Andamento',
+                        'completed' => 'Concluída',
+                        'error' => 'Erro',
+                        'truncated' => 'Truncado',
+                    ])
+                    ->query(function (Builder $query, array $data) {
+                        return match ($data['value']) {
+                            'not_started' => $query->where('import_progress', 0),
+                            'in_progress' => $query->where('import_progress', '>', 0)->where('import_progress', '<', 100),
+                            'completed' => $query->where('import_progress', 100),
+                            'error' => $query->where('import_progress', -1),
+                            'truncated' => $query->where('import_progress', -2),
+                            default => $query,
+                        };
+                    })
+                    ->indicateUsing(function (array $data): ?string {
+                        if ($data['value'] ?? null) {
+                            return 'Status: ' . match ($data['value']) {
+                                'not_started' => 'Não Iniciada',
+                                'in_progress' => 'Em Andamento',
+                                'completed' => 'Concluída',
+                                'error' => 'Erro',
+                                'truncated' => 'Truncado',
+                            };
+                        }
+                        return null;
+                    }),
+                
+                Tables\Filters\SelectFilter::make('balance_status')
+                    ->label('Status do Saldo')
+                    ->options([
+                        'with_balance' => 'Com Saldo',
+                        'without_balance' => 'Sem Saldo',
+                    ])
+                    ->query(function (Builder $query, array $data) {
+                        return match ($data['value']) {
+                            'with_balance' => $query->where('balance', '>', 0),
+                            'without_balance' => $query->where('balance', '<=', 0),
+                            default => $query,
+                        };
+                    })
+                    ->indicateUsing(function (array $data): ?string {
+                        if ($data['value'] ?? null) {
+                            return 'Saldo: ' . match ($data['value']) {
+                                'with_balance' => 'Com Saldo',
+                                'without_balance' => 'Sem Saldo',
+                            };
+                        }
+                        return null;
+                    }),
             ])
             ->actions([
-                Tables\Actions\Action::make('import_transactions')
-                    ->label('Importar Transações')
-                    ->icon('heroicon-o-arrow-down-tray')
-                    ->color('success')
-                    ->requiresConfirmation()
-                    ->modalHeading('Importar Transações')
-                    ->modalDescription('Deseja importar todas as transações desta carteira da blockchain? A importação será executada em background e você poderá acompanhar o progresso.')
-                    ->modalSubmitActionLabel('Sim, Importar')
-                    ->modalCancelActionLabel('Cancelar')
-                    ->action(function (Wallet $record) {
-                        // Verificar se já existe um job em execução para esta carteira
-                        if ($record->import_progress > 0 && $record->import_progress < 100) {
+                Tables\Actions\ActionGroup::make([
+                    Tables\Actions\Action::make('import_transactions')
+                        ->label('Importar Transações')
+                        ->icon('heroicon-o-arrow-down-tray')
+                        ->color('success')
+                        ->requiresConfirmation()
+                        ->modalHeading('Importar Transações')
+                        ->modalDescription('Deseja importar todas as transações desta carteira da blockchain? A importação será executada em background e você poderá acompanhar o progresso.')
+                        ->modalSubmitActionLabel('Sim, Importar')
+                        ->modalCancelActionLabel('Cancelar')
+                        ->action(function (Wallet $record) {
+                            // Verificar se já existe um job em execução para esta carteira
+                            if ($record->import_progress > 0 && $record->import_progress < 100) {
+                                \Filament\Notifications\Notification::make()
+                                    ->title('Importação já em andamento')
+                                    ->body('Esta carteira já possui uma importação em progresso. Aguarde a conclusão.')
+                                    ->warning()
+                                    ->send();
+                                return;
+                            }
+                            
+                            // Verificar o limite antes de iniciar (opcional - pode ser removido se preferir)
+                            $blockchainApi = new \App\Services\BlockchainApiService();
+                            $totalTransactions = $blockchainApi->getTransactionCount($record->address);
+                            $maxTransactions = \App\Jobs\ImportTransactionsJob::MAX_TOTAL_TRANSACTIONS;
+                            
+                            if ($totalTransactions > $maxTransactions) {
+                                \Filament\Notifications\Notification::make()
+                                    ->title('Limite de transações excedido')
+                                    ->body("Esta carteira possui {$totalTransactions} transações, mas o sistema só pode importar até {$maxTransactions} transações. A importação será cancelada.")
+                                    ->warning()
+                                    ->send();
+                                return;
+                            }
+                            
+                            // Iniciar importação em background com delay
+                            dispatch(new \App\Jobs\ImportTransactionsJob($record->id))
+                                ->delay(now()->addSeconds(5)); // 5 segundos de delay
+                            
+                            // Notificação inicial
                             \Filament\Notifications\Notification::make()
-                                ->title('Importação já em andamento')
-                                ->body('Esta carteira já possui uma importação em progresso. Aguarde a conclusão.')
-                                ->warning()
+                                ->title('Importação agendada')
+                                ->body('A importação foi agendada e será iniciada em 5 segundos. Você pode acompanhar o progresso na tabela.')
+                                ->success()
                                 ->send();
-                            return;
-                        }
-                        
-                        // Verificar o limite antes de iniciar (opcional - pode ser removido se preferir)
-                        $blockchainApi = new \App\Services\BlockchainApiService();
-                        $totalTransactions = $blockchainApi->getTransactionCount($record->address);
-                        $maxTransactions = \App\Jobs\ImportTransactionsJob::MAX_TOTAL_TRANSACTIONS;
-                        
-                        if ($totalTransactions > $maxTransactions) {
+                        }),
+                    
+                    Tables\Actions\Action::make('refresh_balance')
+                        ->label('Atualizar Saldo')
+                        ->icon('heroicon-o-arrow-path')
+                        ->color('info')
+                        ->action(function (Wallet $record) {
+                            $blockchainApi = new \App\Services\BlockchainApiService();
+                            $balance = $blockchainApi->getBalance($record->address);
+                            
+                            $record->update(['balance' => $balance]);
+                            
                             \Filament\Notifications\Notification::make()
-                                ->title('Limite de transações excedido')
-                                ->body("Esta carteira possui {$totalTransactions} transações, mas o sistema só pode importar até {$maxTransactions} transações. A importação será cancelada.")
-                                ->warning()
+                                ->title('Saldo atualizado')
+                                ->body('O saldo da carteira foi atualizado com sucesso.')
+                                ->success()
                                 ->send();
-                            return;
-                        }
-                        
-                        // Iniciar importação em background com delay
-                        dispatch(new \App\Jobs\ImportTransactionsJob($record->id))
-                            ->delay(now()->addSeconds(5)); // 5 segundos de delay
-                        
-                        // Notificação inicial
-                        \Filament\Notifications\Notification::make()
-                            ->title('Importação agendada')
-                            ->body('A importação foi agendada e será iniciada em 5 segundos. Você pode acompanhar o progresso na tabela.')
-                            ->success()
-                            ->send();
-                    }),
-                Tables\Actions\Action::make('refresh_balance')
-                    ->label('Atualizar Saldo')
-                    ->icon('heroicon-o-arrow-path')
-                    ->color('info')
-                    ->action(function (Wallet $record) {
-                        $blockchainApi = new \App\Services\BlockchainApiService();
-                        $balance = $blockchainApi->getBalance($record->address);
-                        
-                        $record->update(['balance' => $balance]);
-                        
-                        \Filament\Notifications\Notification::make()
-                            ->title('Saldo atualizado')
-                            ->body('O saldo da carteira foi atualizado com sucesso.')
-                            ->success()
-                            ->send();
-                    }),
-                Tables\Actions\EditAction::make()
-                    ->label('Editar'),
-                Tables\Actions\DeleteAction::make()
-                    ->label('Excluir'),
+                        }),
+                    
+                    Tables\Actions\Action::make('view_transactions')
+                        ->label('Ver Transações')
+                        ->icon('heroicon-o-list-bullet')
+                        ->color('primary')
+                        ->url(fn (Wallet $record): string => route('filament.admin.resources.wallets.edit', $record) . '?activeTab=transactions'),
+                    
+                    Tables\Actions\EditAction::make()
+                        ->label('Editar Carteira'),
+                    
+                    Tables\Actions\DeleteAction::make()
+                        ->label('Excluir Carteira')
+                        ->color('danger')
+                        ->requiresConfirmation()
+                        ->modalHeading('Excluir Carteira')
+                        ->modalDescription('Tem certeza que deseja excluir esta carteira? Esta ação não pode ser desfeita.')
+                        ->modalSubmitActionLabel('Sim, Excluir')
+                        ->modalCancelActionLabel('Cancelar'),
+                ])
+                ->label('Ações')
+                ->icon('heroicon-m-ellipsis-vertical')
+                ->color('gray')
+                ->size('sm')
+                ->dropdownPlacement('bottom-end'),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
@@ -331,7 +361,8 @@ class WalletResource extends Resource
                         ->label('Excluir Selecionados'),
                 ]),
             ])
-            ->defaultSort('created_at', 'desc');
+            ->defaultSort('created_at', 'desc')
+            ->paginated([10, 25, 50]);
     }
 
     public static function getRelations(): array

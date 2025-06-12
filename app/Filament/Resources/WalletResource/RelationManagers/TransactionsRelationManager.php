@@ -16,17 +16,6 @@ class TransactionsRelationManager extends RelationManager
 
     protected static ?string $title = 'Transações';
 
-    public function form(Form $form): Form
-    {
-        return $form
-            ->schema([
-                Forms\Components\TextInput::make('tx_hash')
-                    ->label('Hash da Transação')
-                    ->required()
-                    ->maxLength(255),
-            ]);
-    }
-
     public function table(Table $table): Table
     {
         return $table
@@ -42,11 +31,21 @@ class TransactionsRelationManager extends RelationManager
                     ->label('Hash')
                     ->searchable()
                     ->copyable()
-                    ->limit(16)
+                    ->copyMessage('Hash copiado!')
+                    ->copyMessageDuration(1500)
+                    ->formatStateUsing(function ($state) {
+                        if (strlen($state) > 16) {
+                            return substr($state, 0, 8) . '...' . substr($state, -8);
+                        }
+                        return $state;
+                    })
                     ->tooltip(function (Tables\Columns\TextColumn $column): ?string {
                         $state = $column->getState();
                         if (strlen($state) > 16) {
-                            return $state;
+                            // Quebrar o hash em linhas para melhor visualização
+                            $chunkSize = 32; // 32 caracteres por linha
+                            $chunks = str_split($state, $chunkSize);
+                            return implode("\n", $chunks);
                         }
                         return null;
                     }),
@@ -62,12 +61,12 @@ class TransactionsRelationManager extends RelationManager
                 Tables\Columns\BadgeColumn::make('type')
                     ->label('Tipo')
                     ->colors([
-                        'success' => 'input',
-                        'warning' => 'output',
+                        'success' => 'receive',
+                        'warning' => 'send',
                     ])
                     ->formatStateUsing(fn (string $state): string => match ($state) {
-                        'input' => 'Entrada',
-                        'output' => 'Saída',
+                        'send' => 'Enviada',
+                        'receive' => 'Recebida',
                         default => $state,
                     }),
                 
@@ -75,7 +74,14 @@ class TransactionsRelationManager extends RelationManager
                     ->label('Endereço')
                     ->searchable()
                     ->copyable()
-                    ->limit(16)
+                    ->copyMessage('Endereço copiado!')
+                    ->copyMessageDuration(1500)
+                    ->formatStateUsing(function ($state) {
+                        if (strlen($state) > 16) {
+                            return substr($state, 0, 8) . '...' . substr($state, -8);
+                        }
+                        return $state;
+                    })
                     ->tooltip(function (Tables\Columns\TextColumn $column): ?string {
                         $state = $column->getState();
                         if (strlen($state) > 16) {
@@ -103,17 +109,79 @@ class TransactionsRelationManager extends RelationManager
             ->filters([
                 Tables\Filters\SelectFilter::make('type')
                     ->options([
-                        'input' => 'Entrada',
-                        'output' => 'Saída',
+                        'send' => 'Enviada',
+                        'receive' => 'Recebida',
                     ])
-                    ->label('Tipo'),
+                    ->label('Tipo')
+                    ->indicateUsing(function (array $data): ?string {
+                        if ($data['value'] ?? null) {
+                            return 'Tipo: ' . match ($data['value']) {
+                                'send' => 'Enviada',
+                                'receive' => 'Recebida',
+                            };
+                        }
+                        return null;
+                    }),
+                
+                Tables\Filters\Filter::make('value_range')
+                    ->label('Faixa de Valor da Transação (BTC)')
+                    ->form([
+                        Forms\Components\Grid::make(6)
+                            ->schema([
+                                Forms\Components\TextInput::make('value_min')
+                                    ->label('Valor Mínimo da Transação (BTC)')
+                                    ->numeric()
+                                    ->step(0.00000001)
+                                    ->placeholder('Ex: 0.001')
+                                    ->helperText('Valor mínimo da transação em Bitcoin')
+                                    ->columnSpan(3),
+                                Forms\Components\TextInput::make('value_max')
+                                    ->label('Valor Máximo da Transação (BTC)')
+                                    ->numeric()
+                                    ->step(0.00000001)
+                                    ->placeholder('Ex: 1.0')
+                                    ->helperText('Valor máximo da transação em Bitcoin')
+                                    ->columnSpan(3),
+                            ]),
+                    ])
+                    ->query(function (Builder $query, array $data) {
+                        return $query
+                            ->when(
+                                $data['value_min'],
+                                fn (Builder $query, $value) => $query->where('value', '>=', $value * 100000000), // Converter BTC para satoshis
+                            )
+                            ->when(
+                                $data['value_max'],
+                                fn (Builder $query, $value) => $query->where('value', '<=', $value * 100000000), // Converter BTC para satoshis
+                            );
+                    })
+                    ->indicateUsing(function (array $data): ?string {
+                        $indicators = [];
+                        if ($data['value_min'] ?? null) {
+                            $indicators[] = 'Min: ' . number_format($data['value_min'], 8) . ' BTC';
+                        }
+                        if ($data['value_max'] ?? null) {
+                            $indicators[] = 'Max: ' . number_format($data['value_max'], 8) . ' BTC';
+                        }
+                        return $indicators ? 'Valor da Transação: ' . implode(' - ', $indicators) : null;
+                    }),
             ])
             ->headerActions([
                 // Aqui você pode adicionar ações específicas para transações, se necessário
             ])
             ->actions([
-                Tables\Actions\DeleteAction::make()
-                    ->label('Excluir'),
+                Tables\Actions\ActionGroup::make([
+                    Tables\Actions\ViewAction::make()
+                        ->label('Ver')
+                        ->modalHeading('Detalhes da Transação'),
+                    Tables\Actions\DeleteAction::make()
+                        ->label('Excluir'),
+                ])
+                ->label('Ações')
+                ->icon('heroicon-m-ellipsis-vertical')
+                ->color('gray')
+                ->size('sm')
+                ->dropdownPlacement('bottom-end'),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
@@ -122,6 +190,6 @@ class TransactionsRelationManager extends RelationManager
                 ]),
             ])
             ->defaultSort('block_time', 'desc')
-            ->paginated([10, 25, 50]); // Paginação mais conservadora
+            ->paginated([10, 25, 50]);
     }
 } 

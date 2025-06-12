@@ -21,8 +21,6 @@ class UpdateTransactionCountsCommand extends Command
             // Contar transações por tipo
             $sendCount = $wallet->transactions()->where('type', 'send')->count();
             $receiveCount = $wallet->transactions()->where('type', 'receive')->count();
-            $inputCount = $wallet->transactions()->where('type', 'input')->count();
-            $outputCount = $wallet->transactions()->where('type', 'output')->count();
             $totalImported = $wallet->transactions()->count();
             
             // Atualizar carteira
@@ -30,8 +28,6 @@ class UpdateTransactionCountsCommand extends Command
                 'imported_transactions' => $totalImported,
                 'send_transactions' => $sendCount,
                 'receive_transactions' => $receiveCount,
-                'input_transactions' => $inputCount,
-                'output_transactions' => $outputCount,
             ]);
             
             $bar->advance();

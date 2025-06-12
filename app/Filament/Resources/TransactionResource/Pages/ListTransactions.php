@@ -9,11 +9,13 @@ use Filament\Resources\Pages\ListRecords;
 class ListTransactions extends ListRecords
 {
     protected static string $resource = TransactionResource::class;
+    
+    protected static ?string $title = 'Transações';
 
     protected function getHeaderActions(): array
     {
         return [
-            Actions\CreateAction::make(),
+            // Removido CreateAction pois transações só são criadas via importação automática
         ];
     }
 }

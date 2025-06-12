@@ -19,7 +19,7 @@ class ImportTransactionsJob implements ShouldQueue
     const MAX_TRANSACTIONS_PER_PAGE = 50;
     const MAX_PAGES = 100;
     const MAX_TOTAL_TRANSACTIONS = self::MAX_TRANSACTIONS_PER_PAGE * self::MAX_PAGES; // 5000
-    const DELAY_BETWEEN_PAGES = 10; // segundos
+    const DELAY_BETWEEN_PAGES = 3; // segundos (reduzido de 10s para 3s)
 
     protected int $walletId;
     
@@ -29,9 +29,9 @@ class ImportTransactionsJob implements ShouldQueue
     public $tries = 3;
     
     /**
-     * Tempo máximo de execução em segundos (5 minutos - compatível com queue worker)
+     * Tempo máximo de execução em segundos (1 hora)
      */
-    public $timeout = 300;
+    public $timeout = 3600;
     
     /**
      * Tempo de espera entre tentativas em segundos
@@ -70,6 +70,9 @@ class ImportTransactionsJob implements ShouldQueue
             // Obter total de transações
             $totalTransactions = $blockchainApi->getTransactionCount($wallet->address);
             
+            // Calcular total de páginas estimado
+            $estimatedPages = ceil($totalTransactions / $limit);
+            
             // Verificar se o total excede o máximo possível de importar
             if ($totalTransactions > $maxTransactions) {
                 Log::warning('Importação cancelada: limite de transações excedido', [
@@ -78,7 +81,8 @@ class ImportTransactionsJob implements ShouldQueue
                     'total_transactions' => $totalTransactions,
                     'max_importable' => $maxTransactions,
                     'limit_per_page' => $limit,
-                    'max_pages' => $maxPages
+                    'max_pages' => $maxPages,
+                    'estimated_pages' => $estimatedPages
                 ]);
                 
                 // Marcar a carteira como truncada e parar a execução
@@ -111,7 +115,9 @@ class ImportTransactionsJob implements ShouldQueue
             Log::info('Iniciando importação em background', [
                 'wallet_id' => $wallet->id,
                 'address' => $wallet->address,
-                'total_transactions' => $totalTransactions
+                'total_transactions' => $totalTransactions,
+                'estimated_pages' => $estimatedPages,
+                'limit_per_page' => $limit
             ]);
 
             while ($hasMoreTransactions && $page < $maxPages) {
@@ -156,16 +162,12 @@ class ImportTransactionsJob implements ShouldQueue
                 // Contar transações por tipo
                 $sendCount = $wallet->transactions()->where('type', 'send')->count();
                 $receiveCount = $wallet->transactions()->where('type', 'receive')->count();
-                $inputCount = $wallet->transactions()->where('type', 'input')->count();
-                $outputCount = $wallet->transactions()->where('type', 'output')->count();
                 
                 $wallet->update([
                     'imported_transactions' => $actualImportedCount,
                     'import_progress' => $progress,
                     'send_transactions' => $sendCount,
                     'receive_transactions' => $receiveCount,
-                    'input_transactions' => $inputCount,
-                    'output_transactions' => $outputCount,
                 ]);
 
                 // Log de progresso a cada 5 páginas
@@ -173,7 +175,9 @@ class ImportTransactionsJob implements ShouldQueue
                     Log::info('Progresso da importação', [
                         'wallet_id' => $wallet->id,
                         'page' => $page,
+                        'total_pages' => $estimatedPages,
                         'imported' => $actualImportedCount,
+                        'total_transactions' => $totalTransactions,
                         'progress' => $progress . '%'
                     ]);
                 }
@@ -188,7 +192,9 @@ class ImportTransactionsJob implements ShouldQueue
             Log::info('Importação concluída com sucesso', [
                 'wallet_id' => $wallet->id,
                 'total_imported' => $actualImportedCount,
-                'pages_processed' => $page
+                'total_transactions' => $totalTransactions,
+                'pages_processed' => $page,
+                'estimated_pages' => $estimatedPages
             ]);
 
         } catch (\Exception $e) {
