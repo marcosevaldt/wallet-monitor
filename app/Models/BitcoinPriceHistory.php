@@ -102,31 +102,6 @@ class BitcoinPriceHistory extends Model
     }
 
     /**
-     * Calcula o ROI (Return on Investment) entre duas datas usando preços de fechamento
-     */
-    public static function calculateROI(Carbon $startDate, Carbon $endDate, string $currency = 'usd'): ?array
-    {
-        $startPrice = self::getClosingPriceAtDate($startDate, $currency);
-        $endPrice = self::getClosingPriceAtDate($endDate, $currency);
-
-        if (!$startPrice || !$endPrice) {
-            return null;
-        }
-
-        $priceChange = $endPrice - $startPrice;
-        $roiPercent = ($startPrice > 0) ? ($priceChange / $startPrice) * 100 : 0;
-
-        return [
-            'start_price' => $startPrice,
-            'end_price' => $endPrice,
-            'price_change' => $priceChange,
-            'roi_percent' => $roiPercent,
-            'start_date' => $startDate,
-            'end_date' => $endDate,
-        ];
-    }
-
-    /**
      * Busca estatísticas de preço diário em um período
      */
     public static function getDailyPriceStats(Carbon $startDate, Carbon $endDate, string $currency = 'usd'): array

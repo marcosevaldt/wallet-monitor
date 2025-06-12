@@ -101,6 +101,132 @@ class WalletResource extends Resource
                     ->collapsible()
                     ->collapsed(),
                 
+                Forms\Components\Section::make('Análise de Valorização')
+                    ->description('Análise detalhada da valorização da carteira baseada no preço do Bitcoin')
+                    ->schema([
+                        Forms\Components\Grid::make(2)
+                            ->schema([
+                                Forms\Components\Placeholder::make('btc_liquido')
+                                    ->label('BTC Líquido')
+                                    ->content(function ($record) {
+                                        if (!$record || !$record->exists) return '-';
+                                        try {
+                                            $service = new \App\Services\WalletValuationService();
+                                            $valorizacao = $service->calcularValorizacao($record);
+                                            return $valorizacao ? number_format($valorizacao['btc_liquido'], 8) . ' BTC' : '-';
+                                        } catch (\Throwable $e) {
+                                            return '-';
+                                        }
+                                    }),
+                                
+                                Forms\Components\Placeholder::make('valorizacao_percentual')
+                                    ->label('Valorização')
+                                    ->content(function ($record) {
+                                        if (!$record || !$record->exists) return '-';
+                                        try {
+                                            $service = new \App\Services\WalletValuationService();
+                                            $valorizacao = $service->calcularValorizacao($record);
+                                            if ($valorizacao && isset($valorizacao['valorizacao_percentual'])) {
+                                                $valor = $valorizacao['valorizacao_percentual'];
+                                                $sinal = $valor >= 0 ? '+' : '';
+                                                return $sinal . number_format($valor, 2) . '%';
+                                            }
+                                            return '-';
+                                        } catch (\Throwable $e) {
+                                            return '-';
+                                        }
+                                    }),
+                            ]),
+                        
+                        Forms\Components\Section::make('Detalhes da Valorização')
+                            ->schema([
+                                Forms\Components\Grid::make(2)
+                                    ->schema([
+                                        Forms\Components\Placeholder::make('preco_medio_compra')
+                                            ->label('Preço Médio de Compra')
+                                            ->content(function ($record) {
+                                                if (!$record || !$record->exists) return '-';
+                                                try {
+                                                    $service = new \App\Services\WalletValuationService();
+                                                    $valorizacao = $service->calcularValorizacao($record);
+                                                    return $valorizacao ? '$' . number_format($valorizacao['preco_medio_compra'], 2) : '-';
+                                                } catch (\Throwable $e) {
+                                                    return '-';
+                                                }
+                                            }),
+                                        
+                                        Forms\Components\Placeholder::make('preco_atual')
+                                            ->label('Preço Atual do Bitcoin')
+                                            ->content(function ($record) {
+                                                if (!$record || !$record->exists) return '-';
+                                                try {
+                                                    $service = new \App\Services\WalletValuationService();
+                                                    $valorizacao = $service->calcularValorizacao($record);
+                                                    return $valorizacao ? '$' . number_format($valorizacao['preco_atual'], 2) : '-';
+                                                } catch (\Throwable $e) {
+                                                    return '-';
+                                                }
+                                            }),
+                                        
+                                        Forms\Components\Placeholder::make('variacao_preco')
+                                            ->label('Variação do Preço')
+                                            ->content(function ($record) {
+                                                if (!$record || !$record->exists) return '-';
+                                                try {
+                                                    $service = new \App\Services\WalletValuationService();
+                                                    $valorizacao = $service->calcularValorizacao($record);
+                                                    return $valorizacao ? '$' . number_format($valorizacao['variacao_preco'], 2) : '-';
+                                                } catch (\Throwable $e) {
+                                                    return '-';
+                                                }
+                                            }),
+                                        
+                                        Forms\Components\Placeholder::make('valor_atual')
+                                            ->label('Valor Atual da Carteira')
+                                            ->content(function ($record) {
+                                                if (!$record || !$record->exists) return '-';
+                                                try {
+                                                    $service = new \App\Services\WalletValuationService();
+                                                    $valorizacao = $service->calcularValorizacao($record);
+                                                    return $valorizacao ? '$' . number_format($valorizacao['valor_atual'], 2) : '-';
+                                                } catch (\Throwable $e) {
+                                                    return '-';
+                                                }
+                                            }),
+                                        
+                                        Forms\Components\Placeholder::make('valor_preco_medio')
+                                            ->label('Valor pelo Preço Médio')
+                                            ->content(function ($record) {
+                                                if (!$record || !$record->exists) return '-';
+                                                try {
+                                                    $service = new \App\Services\WalletValuationService();
+                                                    $valorizacao = $service->calcularValorizacao($record);
+                                                    return $valorizacao ? '$' . number_format($valorizacao['valor_preco_medio'], 2) : '-';
+                                                } catch (\Throwable $e) {
+                                                    return '-';
+                                                }
+                                            }),
+                                        
+                                        Forms\Components\Placeholder::make('lucro_prejuizo')
+                                            ->label('Lucro/Prejuízo')
+                                            ->content(function ($record) {
+                                                if (!$record || !$record->exists) return '-';
+                                                try {
+                                                    $service = new \App\Services\WalletValuationService();
+                                                    $valorizacao = $service->calcularValorizacao($record);
+                                                    return $valorizacao ? '$' . number_format($valorizacao['lucro_prejuizo'], 2) : '-';
+                                                } catch (\Throwable $e) {
+                                                    return '-';
+                                                }
+                                            }),
+                                    ]),
+                            ])
+                            ->collapsible()
+                            ->collapsed(),
+                    ])
+                    ->collapsible()
+                    ->collapsed(),
+                
                 Forms\Components\Hidden::make('user_id')
                     ->default(auth()->id()),
             ]);
@@ -337,6 +463,13 @@ class WalletResource extends Resource
                         ->color('primary')
                         ->url(fn (Wallet $record): string => route('filament.admin.resources.wallets.edit', $record) . '?activeTab=transactions'),
                     
+                    Tables\Actions\Action::make('wallet_details')
+                        ->label('Informações Detalhadas')
+                        ->icon('heroicon-o-information-circle')
+                        ->color('info')
+                        ->url(fn (Wallet $record): string => route('filament.admin.resources.wallets.details', $record))
+                        ->openUrlInNewTab(),
+                    
                     Tables\Actions\EditAction::make()
                         ->label('Editar Carteira'),
                     
@@ -378,6 +511,7 @@ class WalletResource extends Resource
             'index' => Pages\ListWallets::route('/'),
             'create' => Pages\CreateWallet::route('/create'),
             'edit' => Pages\EditWallet::route('/{record}/edit'),
+            'details' => Pages\WalletDetails::route('/{record}/details'),
         ];
     }
 }

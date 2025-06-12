@@ -38,6 +38,7 @@ class Wallet extends Model
     protected $casts = [
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
+        'last_import_at' => 'datetime',
     ];
 
     /**

@@ -65,7 +65,10 @@ class BitcoinPriceHistoryResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
-            ->modifyQueryUsing(fn (Builder $query) => $query->where('is_daily', true))
+            ->modifyQueryUsing(fn (Builder $query) => $query
+                ->where('is_daily', true)
+                ->orderBy('timestamp', 'desc')
+            )
             ->columns([
                 TextColumn::make('timestamp')
                     ->label('Data (BR)')
