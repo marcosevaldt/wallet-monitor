@@ -57,6 +57,15 @@ class ImportTransactionsJob implements ShouldQueue
             return;
         }
 
+        // Criar registro do job
+        $importJob = \App\Models\ImportJob::create([
+            'wallet_id' => $wallet->id,
+            'job_type' => 'import',
+            'status' => 'running',
+            'progress' => 0,
+            'started_at' => now(),
+        ]);
+
         $blockchainApi = new BlockchainApiService();
         
         try {
@@ -69,6 +78,11 @@ class ImportTransactionsJob implements ShouldQueue
             
             // Obter total de transações
             $totalTransactions = $blockchainApi->getTransactionCount($wallet->address);
+            
+            // Atualizar job com total de transações
+            $importJob->update([
+                'total_transactions' => $totalTransactions,
+            ]);
             
             // Calcular total de páginas estimado
             $estimatedPages = ceil($totalTransactions / $limit);
@@ -83,6 +97,13 @@ class ImportTransactionsJob implements ShouldQueue
                     'limit_per_page' => $limit,
                     'max_pages' => $maxPages,
                     'estimated_pages' => $estimatedPages
+                ]);
+                
+                // Marcar job como falhado
+                $importJob->update([
+                    'status' => 'failed',
+                    'error_message' => "Limite de transações excedido: {$totalTransactions} > {$maxTransactions}",
+                    'completed_at' => now(),
                 ]);
                 
                 // Marcar a carteira como truncada e parar a execução
@@ -170,6 +191,14 @@ class ImportTransactionsJob implements ShouldQueue
                     'receive_transactions' => $receiveCount,
                 ]);
 
+                // Atualizar job com progresso
+                $importJob->update([
+                    'progress' => $progress,
+                    'imported_transactions' => $actualImportedCount,
+                    'send_transactions' => $sendCount,
+                    'receive_transactions' => $receiveCount,
+                ]);
+
                 // Log de progresso a cada 5 páginas
                 if ($page % 5 === 0) {
                     Log::info('Progresso da importação', [
@@ -192,6 +221,13 @@ class ImportTransactionsJob implements ShouldQueue
             // Atualizar o saldo da carteira automaticamente após a importação
             $balance = $blockchainApi->getBalance($wallet->address);
             $wallet->update(['balance' => $balance]);
+            
+            // Marcar job como concluído
+            $importJob->update([
+                'status' => 'completed',
+                'progress' => 100,
+                'completed_at' => now(),
+            ]);
             
             Log::info('Saldo da carteira atualizado após importação', [
                 'wallet_id' => $wallet->id,

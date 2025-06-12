@@ -27,6 +27,16 @@ class UpdateTransactionsJob implements ShouldQueue
     public function handle(): void
     {
         $wallet = Wallet::findOrFail($this->walletId);
+        
+        // Criar registro do job
+        $importJob = \App\Models\ImportJob::create([
+            'wallet_id' => $wallet->id,
+            'job_type' => 'update',
+            'status' => 'running',
+            'progress' => 0,
+            'started_at' => now(),
+        ]);
+        
         $blockchainApi = new BlockchainApiService();
 
         Log::info('Iniciando atualização de transações', [
@@ -61,6 +71,13 @@ class UpdateTransactionsJob implements ShouldQueue
                 // Atualizar o saldo mesmo sem novas transações
                 $balance = $blockchainApi->getBalance($wallet->address);
                 $wallet->update(['balance' => $balance]);
+                
+                // Marcar job como concluído
+                $importJob->update([
+                    'status' => 'completed',
+                    'progress' => 100,
+                    'completed_at' => now(),
+                ]);
 
                 return;
             }
@@ -111,6 +128,17 @@ class UpdateTransactionsJob implements ShouldQueue
                 'balance' => $balance,
                 'last_import_at' => now(),
             ]);
+            
+            // Marcar job como concluído
+            $importJob->update([
+                'status' => 'completed',
+                'progress' => 100,
+                'total_transactions' => count($newTransactions),
+                'imported_transactions' => $importedCount,
+                'send_transactions' => $sendCount,
+                'receive_transactions' => $receiveCount,
+                'completed_at' => now(),
+            ]);
 
             Log::info('Atualização de transações concluída', [
                 'wallet_id' => $wallet->id,
@@ -127,6 +155,13 @@ class UpdateTransactionsJob implements ShouldQueue
                 'address' => $wallet->address,
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
+            ]);
+            
+            // Marcar job como falhado
+            $importJob->update([
+                'status' => 'failed',
+                'error_message' => $e->getMessage(),
+                'completed_at' => now(),
             ]);
 
             throw $e;

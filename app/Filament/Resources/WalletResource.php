@@ -122,6 +122,9 @@ class WalletResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
+            ->modifyQueryUsing(fn (Builder $query) => $query->with(['importJobs' => function ($query) {
+                $query->orderBy('created_at', 'desc')->limit(1);
+            }]))
             ->columns([
                 Tables\Columns\TextColumn::make('name')
                     ->label('Nome')
@@ -161,45 +164,6 @@ class WalletResource extends Resource
                     ->formatStateUsing(fn ($state) => number_format(($state ?? 0) / 100000000, 8))
                     ->color(fn ($state) => ($state ?? 0) > 0 ? 'success' : 'danger'),
                 
-                Tables\Columns\BadgeColumn::make('import_status')
-                    ->label('Status')
-                    ->getStateUsing(function ($record) {
-                        if ($record->import_progress == -2) return 'Truncado';
-                        if ($record->import_progress == -1) return 'Erro';
-                        if ($record->import_progress == 100) return 'Concluída';
-                        if ($record->import_progress > 0) return 'Em Andamento';
-                        return 'Não Iniciada';
-                    })
-                    ->colors([
-                        'danger' => ['Truncado', 'Erro'],
-                        'success' => 'Concluída',
-                        'warning' => 'Em Andamento',
-                        'gray' => 'Não Iniciada',
-                    ]),
-                
-                Tables\Columns\TextColumn::make('import_progress')
-                    ->label('Progresso')
-                    ->numeric()
-                    ->suffix('%')
-                    ->sortable()
-                    ->color(fn ($state) => match (true) {
-                        $state == -2 => 'danger',
-                        $state == -1 => 'danger',
-                        $state == 100 => 'success',
-                        $state > 0 => 'warning',
-                        default => 'gray',
-                    })
-                    ->formatStateUsing(fn ($state) => match (true) {
-                        $state == -2 => 'Truncado',
-                        $state == -1 => 'Erro',
-                        default => $state,
-                    })
-                    ->description(fn ($record) => match (true) {
-                        $record->import_progress == -2 => 'Limite da API excedido',
-                        $record->import_progress == -1 => 'Erro na importação',
-                        default => $record->imported_transactions . '/' . $record->total_transactions,
-                    }),
-                
                 Tables\Columns\TextColumn::make('transactions_summary')
                     ->label('Transações')
                     ->getStateUsing(function ($record) {
@@ -207,15 +171,19 @@ class WalletResource extends Resource
                         $receive = $record->receive_transactions ?? 0;
                         return "📤 {$send} | 📥 {$receive}";
                     })
-                    ->description(fn ($record) => 'Enviadas | Recebidas'),
+                    ->description('Enviadas | Recebidas'),
                 
                 Tables\Columns\TextColumn::make('last_import_at')
                     ->label('Última Importação')
                     ->getStateUsing(function ($record) {
-                        if (!$record->last_import_at) {
+                        // Usar o relacionamento carregado via eager loading
+                        $lastJob = $record->importJobs->first();
+                        
+                        if (!$lastJob) {
                             return 'Nunca';
                         }
-                        return $record->last_import_at->diffForHumans();
+                        
+                        return $lastJob->created_at->diffForHumans();
                     })
                     ->color(fn ($state) => $state === 'Nunca' ? 'gray' : 'success')
                     ->sortable(),
@@ -228,38 +196,6 @@ class WalletResource extends Resource
                     ->sortable(),
             ])
             ->filters([
-                Tables\Filters\SelectFilter::make('import_status')
-                    ->label('Status de Importação')
-                    ->options([
-                        'not_started' => 'Não Iniciada',
-                        'in_progress' => 'Em Andamento',
-                        'completed' => 'Concluída',
-                        'error' => 'Erro',
-                        'truncated' => 'Truncado',
-                    ])
-                    ->query(function (Builder $query, array $data) {
-                        return match ($data['value']) {
-                            'not_started' => $query->where('import_progress', 0),
-                            'in_progress' => $query->where('import_progress', '>', 0)->where('import_progress', '<', 100),
-                            'completed' => $query->where('import_progress', 100),
-                            'error' => $query->where('import_progress', -1),
-                            'truncated' => $query->where('import_progress', -2),
-                            default => $query,
-                        };
-                    })
-                    ->indicateUsing(function (array $data): ?string {
-                        if ($data['value'] ?? null) {
-                            return 'Status: ' . match ($data['value']) {
-                                'not_started' => 'Não Iniciada',
-                                'in_progress' => 'Em Andamento',
-                                'completed' => 'Concluída',
-                                'error' => 'Erro',
-                                'truncated' => 'Truncado',
-                            };
-                        }
-                        return null;
-                    }),
-                
                 Tables\Filters\SelectFilter::make('balance_status')
                     ->label('Status do Saldo')
                     ->options([
@@ -429,6 +365,7 @@ class WalletResource extends Resource
     {
         return [
             RelationManagers\TransactionsRelationManager::class,
+            RelationManagers\ImportJobsRelationManager::class,
         ];
     }
 

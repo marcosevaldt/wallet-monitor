@@ -41,7 +41,7 @@ class EditWallet extends EditRecord
                         
                         \Filament\Notifications\Notification::make()
                             ->title('Importação iniciada')
-                            ->body('A importação das transações foi iniciada em background. Você pode acompanhar o progresso.')
+                            ->body('A importação das transações foi iniciada em background. Você pode acompanhar o progresso na aba "Histórico de Importações".')
                             ->success()
                             ->send();
                             
@@ -87,7 +87,7 @@ class EditWallet extends EditRecord
                         
                         \Filament\Notifications\Notification::make()
                             ->title('Atualização iniciada')
-                            ->body('A atualização das transações foi iniciada em background. Apenas as transações mais recentes serão importadas.')
+                            ->body('A atualização das transações foi iniciada em background. Apenas as transações mais recentes serão importadas. Acompanhe o progresso na aba "Histórico de Importações".')
                             ->success()
                             ->send();
                             

@@ -58,6 +58,14 @@ class Wallet extends Model
     }
 
     /**
+     * Relacionamento com os jobs de importação.
+     */
+    public function importJobs(): HasMany
+    {
+        return $this->hasMany(ImportJob::class);
+    }
+
+    /**
      * Calcula o saldo total da carteira baseado nas transações.
      */
     public function getCalculatedBalanceAttribute(): float
