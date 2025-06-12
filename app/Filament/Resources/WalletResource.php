@@ -34,7 +34,7 @@ class WalletResource extends Resource
         return $form
             ->schema([
                 Forms\Components\Section::make('Informações da Carteira')
-                    ->description('Adicione uma nova carteira Bitcoin para monitoramento')
+                    ->description('Gerencie as informações da carteira Bitcoin')
                     ->schema([
                         Forms\Components\TextInput::make('name')
                             ->label('Nome da Carteira')
@@ -49,7 +49,16 @@ class WalletResource extends Resource
                             ->required()
                             ->maxLength(255)
                             ->unique(ignoreRecord: true)
-                            ->helperText('Digite o endereço completo da carteira Bitcoin')
+                            ->disabled(function ($record) {
+                                // Sempre desabilitar na edição (quando $record existe)
+                                return $record !== null;
+                            })
+                            ->helperText(function ($record) {
+                                if ($record !== null) {
+                                    return 'O endereço da carteira não pode ser alterado após a criação. Para usar um endereço diferente, exclua esta carteira e crie uma nova.';
+                                }
+                                return 'Digite o endereço completo da carteira Bitcoin';
+                            })
                             ->columnSpanFull(),
                         
                         Forms\Components\TextInput::make('label')
@@ -59,60 +68,6 @@ class WalletResource extends Resource
                             ->helperText('Rótulo adicional para organização (opcional)'),
                     ])
                     ->columns(2),
-                
-                Forms\Components\Section::make('Informações de Importação')
-                    ->description('Dados de progresso da importação de transações')
-                    ->schema([
-                        Forms\Components\TextInput::make('balance')
-                            ->label('Saldo Atual (Satoshis)')
-                            ->numeric()
-                            ->default(0)
-                            ->disabled()
-                            ->helperText('Saldo atual da carteira (será atualizado automaticamente)'),
-                        
-                        Forms\Components\TextInput::make('total_transactions')
-                            ->label('Total de Transações')
-                            ->numeric()
-                            ->default(0)
-                            ->disabled()
-                            ->helperText('Total de transações encontradas na blockchain'),
-                        
-                        Forms\Components\TextInput::make('imported_transactions')
-                            ->label('Transações Importadas')
-                            ->numeric()
-                            ->default(0)
-                            ->disabled()
-                            ->helperText('Quantidade de transações já importadas'),
-                        
-                        Forms\Components\TextInput::make('import_progress')
-                            ->label('Progresso da Importação')
-                            ->numeric()
-                            ->default(0.0)
-                            ->suffix('%')
-                            ->disabled()
-                            ->helperText('Progresso atual da importação'),
-                        
-                        Forms\Components\TextInput::make('send_transactions')
-                            ->label('Transações Enviadas')
-                            ->numeric()
-                            ->default(0)
-                            ->disabled()
-                            ->helperText('Quantidade de transações de envio'),
-                        
-                        Forms\Components\TextInput::make('receive_transactions')
-                            ->label('Transações Recebidas')
-                            ->numeric()
-                            ->default(0)
-                            ->disabled()
-                            ->helperText('Quantidade de transações de recebimento'),
-                        
-                        Forms\Components\DateTimePicker::make('last_import_at')
-                            ->label('Última Importação')
-                            ->disabled()
-                            ->helperText('Data e hora da última importação'),
-                    ])
-                    ->collapsible()
-                    ->collapsed(),
                 
                 Forms\Components\Hidden::make('user_id')
                     ->default(auth()->id()),

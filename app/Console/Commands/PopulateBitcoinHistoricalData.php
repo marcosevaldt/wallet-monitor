@@ -39,6 +39,8 @@ class PopulateBitcoinHistoricalData extends Command
         $this->info("🪙 Populando dados históricos do Bitcoin...");
         $this->info("💰 Moeda: {$currency}");
         $this->info("📅 Dias: {$days}");
+        $this->info("📊 Fonte: API CoinGecko OHLC (Open, High, Low, Close)");
+        $this->info("💡 Campos disponíveis: Open, High, Low, Close, Price");
 
         // Verificar se deve prosseguir
         if (!$force) {
@@ -80,14 +82,30 @@ class PopulateBitcoinHistoricalData extends Command
             // Processar e persistir dados OHLC
             $processedCount = 0;
             $skippedCount = 0;
+            $errorCount = 0;
 
-            foreach ($data as $ohlcvData) {
+            $this->info("🔄 Processando dados...");
+
+            foreach ($data as $index => $ohlcvData) {
                 // Formato OHLCV: [timestamp, open, high, low, close]
+                if (count($ohlcvData) < 5) {
+                    $this->warn("⚠️  Dados OHLC inválidos no índice {$index}: " . json_encode($ohlcvData));
+                    $errorCount++;
+                    continue;
+                }
+
                 $timestamp = Carbon::createFromTimestampUTC($ohlcvData[0] / 1000);
-                $open = $ohlcvData[1];
-                $high = $ohlcvData[2];
-                $low = $ohlcvData[3];
-                $close = $ohlcvData[4];
+                $open = (float) $ohlcvData[1];
+                $high = (float) $ohlcvData[2];
+                $low = (float) $ohlcvData[3];
+                $close = (float) $ohlcvData[4];
+
+                // Validação básica dos dados
+                if ($open <= 0 || $high <= 0 || $low <= 0 || $close <= 0) {
+                    $this->warn("⚠️  Dados OHLC inválidos para {$timestamp->format('Y-m-d')}: open={$open}, high={$high}, low={$low}, close={$close}");
+                    $errorCount++;
+                    continue;
+                }
 
                 // Verificar se já existe registro para esta data
                 $existingRecord = BitcoinPriceHistory::where('currency', $currency)
@@ -108,8 +126,6 @@ class PopulateBitcoinHistoricalData extends Command
                         'high' => $high,
                         'low' => $low,
                         'close' => $close,
-                        'volume' => null, // OHLC não inclui volume
-                        'market_cap' => null,
                         'currency' => $currency,
                         'is_daily' => true,
                     ]);
@@ -131,6 +147,7 @@ class PopulateBitcoinHistoricalData extends Command
                         'close' => $close,
                         'error' => $e->getMessage()
                     ]);
+                    $errorCount++;
                 }
             }
 
@@ -143,6 +160,10 @@ class PopulateBitcoinHistoricalData extends Command
             $this->info("📅 Registros diários: " . number_format($dailyRecords, 0, ',', '.'));
             $this->info("✅ Novos registros processados: " . number_format($processedCount, 0, ',', '.'));
             $this->info("⏭️  Registros pulados (já existiam): " . number_format($skippedCount, 0, ',', '.'));
+            
+            if ($errorCount > 0) {
+                $this->warn("⚠️  Registros com erro: " . number_format($errorCount, 0, ',', '.'));
+            }
 
             // Mostrar período coberto
             $oldestRecord = BitcoinPriceHistory::where('is_daily', true)->oldest('timestamp')->first();
@@ -158,6 +179,7 @@ class PopulateBitcoinHistoricalData extends Command
             }
 
             $this->info("✅ População de dados históricos concluída!");
+            $this->info("💡 Dados salvos: Open, High, Low, Close, Price");
 
             return 0;
 

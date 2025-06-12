@@ -53,6 +53,10 @@ class EditWallet extends EditRecord
                             ->send();
                     }
                 })
+                ->after(function () {
+                    // Recarregar a página após a ação
+                    redirect()->to(route('filament.admin.resources.wallets.edit', $this->getRecord()));
+                })
                 ->requiresConfirmation()
                 ->modalHeading('Importar Transações')
                 ->modalDescription('Tem certeza que deseja importar as transações desta carteira? Esta operação pode demorar alguns minutos.')
@@ -98,6 +102,10 @@ class EditWallet extends EditRecord
                             ->danger()
                             ->send();
                     }
+                })
+                ->after(function () {
+                    // Recarregar a página após a ação
+                    redirect()->to(route('filament.admin.resources.wallets.edit', $this->getRecord()));
                 })
                 ->requiresConfirmation()
                 ->modalHeading('Atualizar Transações')

@@ -100,8 +100,6 @@ class BitcoinPriceService
                         'high' => $high,
                         'low' => $low,
                         'close' => $close,
-                        'volume' => null, // OHLCV não inclui volume
-                        'market_cap' => null,
                         'currency' => $currency,
                         'is_daily' => true,
                     ]);
@@ -225,69 +223,5 @@ class BitcoinPriceService
                 'formatted_price' => '$' . number_format($price[1], 2),
             ];
         }, $prices);
-    }
-
-    /**
-     * Formata dados de volume para gráfico
-     */
-    protected function formatVolumes(array $volumes): array
-    {
-        return array_map(function ($volume) {
-            return [
-                'timestamp' => intval($volume[0] / 1000),
-                'date' => gmdate('Y-m-d H:i:s', intval($volume[0] / 1000)), // Usar UTC
-                'volume' => $volume[1],
-                'formatted_volume' => $this->formatVolume($volume[1]),
-            ];
-        }, $volumes);
-    }
-
-    /**
-     * Formata dados de market cap para gráfico
-     */
-    protected function formatMarketCaps(array $marketCaps): array
-    {
-        return array_map(function ($marketCap) {
-            return [
-                'timestamp' => intval($marketCap[0] / 1000),
-                'date' => gmdate('Y-m-d H:i:s', intval($marketCap[0] / 1000)), // Usar UTC
-                'market_cap' => $marketCap[1],
-                'formatted_market_cap' => $this->formatMarketCap($marketCap[1]),
-            ];
-        }, $marketCaps);
-    }
-
-    /**
-     * Formata volume para exibição
-     */
-    protected function formatVolume(float $volume): string
-    {
-        if ($volume >= 1e9) {
-            return number_format($volume / 1e9, 2) . 'B';
-        }
-        if ($volume >= 1e6) {
-            return number_format($volume / 1e6, 2) . 'M';
-        }
-        if ($volume >= 1e3) {
-            return number_format($volume / 1e3, 2) . 'K';
-        }
-        return number_format($volume, 2);
-    }
-
-    /**
-     * Formata market cap para exibição
-     */
-    protected function formatMarketCap(float $marketCap): string
-    {
-        if ($marketCap >= 1e12) {
-            return '$' . number_format($marketCap / 1e12, 2) . 'T';
-        }
-        if ($marketCap >= 1e9) {
-            return '$' . number_format($marketCap / 1e9, 2) . 'B';
-        }
-        if ($marketCap >= 1e6) {
-            return '$' . number_format($marketCap / 1e6, 2) . 'M';
-        }
-        return '$' . number_format($marketCap, 2);
     }
 } 
