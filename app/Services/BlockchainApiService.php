@@ -51,6 +51,55 @@ class BlockchainApiService
         return [];
     }
 
+    public function getTransactionsAfter(string $address, int $lastBlockTime): array
+    {
+        // Buscar transações em lotes e filtrar por data
+        $allTransactions = [];
+        $offset = 0;
+        $limit = 100;
+        $maxAttempts = 10; // Limitar tentativas para evitar loop infinito
+        $attempts = 0;
+
+        while ($attempts < $maxAttempts) {
+            $transactions = $this->getTransactions($address, $limit, $offset);
+            
+            if (empty($transactions)) {
+                break;
+            }
+
+            $foundOlderTransaction = false;
+            
+            foreach ($transactions as $tx) {
+                $txTime = $tx['time'] ?? 0;
+                
+                // Se encontrou uma transação mais antiga que a última importada, parar
+                if ($txTime <= $lastBlockTime) {
+                    $foundOlderTransaction = true;
+                    break;
+                }
+                
+                $allTransactions[] = $tx;
+            }
+            
+            // Se encontrou transação mais antiga, parar a busca
+            if ($foundOlderTransaction) {
+                break;
+            }
+            
+            $offset += $limit;
+            $attempts++;
+        }
+
+        Log::info('Transações novas encontradas', [
+            'address' => $address,
+            'last_block_time' => $lastBlockTime,
+            'new_transactions_count' => count($allTransactions),
+            'attempts' => $attempts
+        ]);
+
+        return $allTransactions;
+    }
+
     public function saveTransaction(Wallet $wallet, array $tx): void
     {
         if (!isset($tx['hash'])) {

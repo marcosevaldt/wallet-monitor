@@ -207,21 +207,25 @@ class WalletResource extends Resource
                         $receive = $record->receive_transactions ?? 0;
                         return "📤 {$send} | 📥 {$receive}";
                     })
-                    ->description(fn ($record) => 'Enviadas | Recebidas')
-                    ->toggleable(isToggledHiddenByDefault: true),
+                    ->description(fn ($record) => 'Enviadas | Recebidas'),
                 
                 Tables\Columns\TextColumn::make('last_import_at')
                     ->label('Última Importação')
-                    ->dateTime('d/m/Y H:i')
-                    ->sortable()
-                    ->color(fn ($state) => $state ? 'success' : 'gray')
-                    ->toggleable(isToggledHiddenByDefault: true),
+                    ->getStateUsing(function ($record) {
+                        if (!$record->last_import_at) {
+                            return 'Nunca';
+                        }
+                        return $record->last_import_at->diffForHumans();
+                    })
+                    ->color(fn ($state) => $state === 'Nunca' ? 'gray' : 'success')
+                    ->sortable(),
                 
                 Tables\Columns\TextColumn::make('created_at')
                     ->label('Criado em')
-                    ->dateTime('d/m/Y H:i')
-                    ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
+                    ->getStateUsing(function ($record) {
+                        return $record->created_at->diffForHumans();
+                    })
+                    ->sortable(),
             ])
             ->filters([
                 Tables\Filters\SelectFilter::make('import_status')
@@ -284,7 +288,10 @@ class WalletResource extends Resource
                     Tables\Actions\Action::make('import_transactions')
                         ->label('Importar Transações')
                         ->icon('heroicon-o-arrow-down-tray')
-                        ->color('success')
+                        ->visible(function (Wallet $record) {
+                            // Só mostrar se NÃO tem transações importadas
+                            return $record->imported_transactions == 0;
+                        })
                         ->requiresConfirmation()
                         ->modalHeading('Importar Transações')
                         ->modalDescription('Deseja importar todas as transações desta carteira da blockchain? A importação será executada em background e você poderá acompanhar o progresso.')
@@ -327,10 +334,44 @@ class WalletResource extends Resource
                                 ->send();
                         }),
                     
+                    Tables\Actions\Action::make('update_transactions')
+                        ->label('Atualizar Transações')
+                        ->icon('heroicon-o-arrow-path')
+                        ->visible(function (Wallet $record) {
+                            // Só mostrar se já tem transações importadas
+                            return $record->imported_transactions > 0;
+                        })
+                        ->requiresConfirmation()
+                        ->modalHeading('Atualizar Transações')
+                        ->modalDescription('Deseja atualizar as transações desta carteira? Apenas as transações mais recentes serão importadas.')
+                        ->modalSubmitActionLabel('Sim, Atualizar')
+                        ->modalCancelActionLabel('Cancelar')
+                        ->action(function (Wallet $record) {
+                            // Verificar se já existe um job em execução para esta carteira
+                            if ($record->import_progress > 0 && $record->import_progress < 100) {
+                                \Filament\Notifications\Notification::make()
+                                    ->title('Importação já em andamento')
+                                    ->body('Esta carteira já possui uma importação em progresso. Aguarde a conclusão.')
+                                    ->warning()
+                                    ->send();
+                                return;
+                            }
+                            
+                            // Iniciar atualização em background
+                            dispatch(new \App\Jobs\UpdateTransactionsJob($record->id))
+                                ->delay(now()->addSeconds(2)); // 2 segundos de delay
+                            
+                            // Notificação inicial
+                            \Filament\Notifications\Notification::make()
+                                ->title('Atualização agendada')
+                                ->body('A atualização das transações foi agendada e será iniciada em 2 segundos. Apenas as transações mais recentes serão importadas.')
+                                ->success()
+                                ->send();
+                        }),
+                    
                     Tables\Actions\Action::make('refresh_balance')
                         ->label('Atualizar Saldo')
-                        ->icon('heroicon-o-arrow-path')
-                        ->color('info')
+                        ->icon('heroicon-o-currency-dollar')
                         ->action(function (Wallet $record) {
                             $blockchainApi = new \App\Services\BlockchainApiService();
                             $balance = $blockchainApi->getBalance($record->address);
@@ -347,21 +388,21 @@ class WalletResource extends Resource
                     Tables\Actions\Action::make('view_transactions')
                         ->label('Ver Transações')
                         ->icon('heroicon-o-list-bullet')
-                        ->color('primary')
                         ->url(fn (Wallet $record): string => route('filament.admin.resources.wallets.edit', $record) . '?activeTab=transactions'),
                     
                     Tables\Actions\Action::make('wallet_details')
                         ->label('Informações Detalhadas')
                         ->icon('heroicon-o-information-circle')
-                        ->color('info')
                         ->url(fn (Wallet $record): string => route('filament.admin.resources.wallets.details', $record))
                         ->openUrlInNewTab(),
                     
                     Tables\Actions\EditAction::make()
-                        ->label('Editar Carteira'),
+                        ->label('Editar Carteira')
+                        ->icon('heroicon-o-pencil-square'),
                     
                     Tables\Actions\DeleteAction::make()
                         ->label('Excluir Carteira')
+                        ->icon('heroicon-o-trash')
                         ->color('danger')
                         ->requiresConfirmation()
                         ->modalHeading('Excluir Carteira')
@@ -371,7 +412,6 @@ class WalletResource extends Resource
                 ])
                 ->label('Ações')
                 ->icon('heroicon-m-ellipsis-vertical')
-                ->color('gray')
                 ->size('sm')
                 ->dropdownPlacement('bottom-end'),
             ])
