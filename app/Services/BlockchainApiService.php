@@ -58,7 +58,7 @@ class BlockchainApiService
             return;
         }
 
-        $blockTime = isset($tx['time']) ? Carbon::createFromTimestamp($tx['time']) : null;
+        $blockTime = isset($tx['time']) ? Carbon::createFromTimestampUTC($tx['time']) : null;
         if ($blockTime && $blockTime->year < 2009) {
             Log::warning('Data de transação inválida, usando data atual', ['wallet_id' => $wallet->id, 'tx_hash' => $tx['hash'], 'block_time' => $blockTime]);
             $blockTime = now();
@@ -209,8 +209,25 @@ class BlockchainApiService
     protected function calculateValue(Wallet $wallet, array $transaction, string $type): int
     {
         if ($type === 'send') {
-            return $this->getTransactionValue($wallet->address, $transaction, $type);
+            // Para transações send, calcular o valor líquido enviado
+            // (valor total dos inputs - valor de troco que voltou para a carteira)
+            $inputs = collect($transaction['inputs']);
+            $outputs = collect($transaction['out']);
+            
+            // Valor total que saiu da carteira (inputs)
+            $totalInputValue = $inputs->sum(function ($input) use ($wallet) {
+                return isset($input['prev_out']['addr']) && $input['prev_out']['addr'] === $wallet->address ? $input['prev_out']['value'] : 0;
+            });
+            
+            // Valor de troco que voltou para a carteira (outputs para a própria carteira)
+            $changeValue = $outputs->sum(function ($output) use ($wallet) {
+                return isset($output['addr']) && $output['addr'] === $wallet->address ? $output['value'] : 0;
+            });
+            
+            // Valor líquido enviado = total que saiu - troco que voltou
+            return $totalInputValue - $changeValue;
         } else {
+            // Para transações receive, usar o valor que entrou na carteira
             return $this->getTransactionValue($wallet->address, $transaction, $type);
         }
     }

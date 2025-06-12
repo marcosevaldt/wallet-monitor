@@ -30,3 +30,10 @@ Schedule::command('bitcoin:populate-historical-data --days=365 --force')
     ->appendOutputTo(storage_path('logs/bitcoin-historical.log'))
     ->withoutOverlapping()
     ->runInBackground();
+
+// Wallet Balance Update Schedule - Atualização automática dos saldos das carteiras
+Schedule::command('wallet:update-balance')
+    ->hourly()
+    ->appendOutputTo(storage_path('logs/wallet-balance-update.log'))
+    ->withoutOverlapping()
+    ->runInBackground();

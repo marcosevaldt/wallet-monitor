@@ -189,6 +189,17 @@ class ImportTransactionsJob implements ShouldQueue
                 'last_import_at' => now(),
             ]);
 
+            // Atualizar o saldo da carteira automaticamente após a importação
+            $balance = $blockchainApi->getBalance($wallet->address);
+            $wallet->update(['balance' => $balance]);
+            
+            Log::info('Saldo da carteira atualizado após importação', [
+                'wallet_id' => $wallet->id,
+                'address' => $wallet->address,
+                'balance' => $balance,
+                'balance_btc' => number_format($balance / 100000000, 8)
+            ]);
+
             Log::info('Importação concluída com sucesso', [
                 'wallet_id' => $wallet->id,
                 'total_imported' => $actualImportedCount,
@@ -202,6 +213,24 @@ class ImportTransactionsJob implements ShouldQueue
                 'wallet_id' => $wallet->id,
                 'error' => $e->getMessage()
             ]);
+            
+            // Atualizar o saldo mesmo em caso de erro
+            try {
+                $balance = $blockchainApi->getBalance($wallet->address);
+                $wallet->update(['balance' => $balance]);
+                
+                Log::info('Saldo da carteira atualizado mesmo com erro na importação', [
+                    'wallet_id' => $wallet->id,
+                    'address' => $wallet->address,
+                    'balance' => $balance,
+                    'balance_btc' => number_format($balance / 100000000, 8)
+                ]);
+            } catch (\Exception $balanceError) {
+                Log::error('Erro ao atualizar saldo após falha na importação', [
+                    'wallet_id' => $wallet->id,
+                    'error' => $balanceError->getMessage()
+                ]);
+            }
             
             // Marcar como erro
             $wallet->update([

@@ -85,6 +85,24 @@ class ProcessTransactionImport implements ShouldQueue
             'last_import_at' => now(),
         ]);
 
+        // Atualizar o saldo da carteira automaticamente após a importação
+        try {
+            $balance = $this->apiService->getBalance($address);
+            $wallet->update(['balance' => $balance]);
+            
+            Log::info('Saldo da carteira atualizado após importação (Listener)', [
+                'wallet_id' => $wallet->id,
+                'address' => $address,
+                'balance' => $balance,
+                'balance_btc' => number_format($balance / 100000000, 8)
+            ]);
+        } catch (\Exception $balanceError) {
+            Log::error('Erro ao atualizar saldo após importação (Listener)', [
+                'wallet_id' => $wallet->id,
+                'error' => $balanceError->getMessage()
+            ]);
+        }
+
         Log::info('Importação paginada de transações concluída', ['wallet_id' => $wallet->id, 'total_imported' => $importedTransactions]);
     }
 } 

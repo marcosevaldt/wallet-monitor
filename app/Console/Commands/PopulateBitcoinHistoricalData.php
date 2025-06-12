@@ -83,7 +83,7 @@ class PopulateBitcoinHistoricalData extends Command
 
             foreach ($data as $ohlcvData) {
                 // Formato OHLCV: [timestamp, open, high, low, close]
-                $timestamp = Carbon::createFromTimestamp($ohlcvData[0] / 1000);
+                $timestamp = Carbon::createFromTimestampUTC($ohlcvData[0] / 1000);
                 $open = $ohlcvData[1];
                 $high = $ohlcvData[2];
                 $low = $ohlcvData[3];

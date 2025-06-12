@@ -47,7 +47,7 @@ class PopulateBitcoinHistory extends Command
         }
         
         $this->info("✅ Dados obtidos com sucesso!");
-        $this->info("📊 Total de pontos de preço: " . count($data['prices']));
+        $this->info("📊 Total de pontos de preço: " . count($data['daily_data']));
         
         // Verificar quantos registros foram criados
         $totalRecords = BitcoinPriceHistory::where('currency', $currency)->count();

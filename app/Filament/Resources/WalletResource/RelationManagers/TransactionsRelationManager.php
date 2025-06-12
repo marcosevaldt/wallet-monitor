@@ -16,6 +16,58 @@ class TransactionsRelationManager extends RelationManager
 
     protected static ?string $title = 'Transações';
 
+    public function form(Form $form): Form
+    {
+        return $form
+            ->schema([
+                Forms\Components\Section::make('Informações da Transação')
+                    ->schema([
+                        Forms\Components\TextInput::make('tx_hash')
+                            ->label('Hash da Transação')
+                            ->disabled()
+                            ->required()
+                            ->maxLength(255),
+                        
+                        Forms\Components\TextInput::make('value')
+                            ->label('Valor (Satoshis)')
+                            ->disabled()
+                            ->numeric()
+                            ->required(),
+                        
+                        Forms\Components\Select::make('type')
+                            ->label('Tipo')
+                            ->options([
+                                'send' => 'Enviada',
+                                'receive' => 'Recebida',
+                            ])
+                            ->disabled()
+                            ->required(),
+                        
+                        Forms\Components\TextInput::make('address')
+                            ->label('Endereço')
+                            ->disabled()
+                            ->required()
+                            ->maxLength(255),
+                        
+                        Forms\Components\TextInput::make('block_height')
+                            ->label('Altura do Bloco')
+                            ->disabled()
+                            ->numeric(),
+                        
+                        Forms\Components\DateTimePicker::make('block_time')
+                            ->label('Data/Hora da Transação')
+                            ->disabled()
+                            ->displayFormat('d/m/Y H:i:s'),
+                        
+                        Forms\Components\DateTimePicker::make('created_at')
+                            ->label('Importado em')
+                            ->disabled()
+                            ->displayFormat('d/m/Y H:i:s'),
+                    ])
+                    ->columns(2),
+            ]);
+    }
+
     public function table(Table $table): Table
     {
         return $table
@@ -24,7 +76,6 @@ class TransactionsRelationManager extends RelationManager
                 ->select(['id', 'tx_hash', 'value', 'type', 'address', 'block_height', 'block_time', 'created_at'])
                 ->whereNotNull('block_time')
                 ->orderBy('block_time', 'desc')
-                ->limit(1000)
             )
             ->columns([
                 Tables\Columns\TextColumn::make('tx_hash')

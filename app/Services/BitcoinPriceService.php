@@ -80,7 +80,7 @@ class BitcoinPriceService
         try {
             foreach ($data as $ohlcvData) {
                 // Formato OHLCV: [timestamp, open, high, low, close]
-                $timestamp = Carbon::createFromTimestamp($ohlcvData[0] / 1000);
+                $timestamp = Carbon::createFromTimestampUTC($ohlcvData[0] / 1000);
                 $open = $ohlcvData[1];
                 $high = $ohlcvData[2];
                 $low = $ohlcvData[3];
@@ -188,8 +188,8 @@ class BitcoinPriceService
             $timestamp = intval($ohlcv[0] / 1000);
             return [
                 'timestamp' => $timestamp,
-                'date' => date('Y-m-d', $timestamp),
-                'datetime' => date('Y-m-d H:i:s', $timestamp),
+                'date' => gmdate('Y-m-d', $timestamp),
+                'datetime' => gmdate('Y-m-d H:i:s', $timestamp),
                 'open' => $ohlcv[1],
                 'high' => $ohlcv[2],
                 'low' => $ohlcv[3],
@@ -220,7 +220,7 @@ class BitcoinPriceService
         return array_map(function ($price) {
             return [
                 'timestamp' => intval($price[0] / 1000), // Converter para segundos
-                'date' => date('Y-m-d H:i:s', intval($price[0] / 1000)),
+                'date' => gmdate('Y-m-d H:i:s', intval($price[0] / 1000)), // Usar UTC
                 'price' => $price[1],
                 'formatted_price' => '$' . number_format($price[1], 2),
             ];
@@ -235,7 +235,7 @@ class BitcoinPriceService
         return array_map(function ($volume) {
             return [
                 'timestamp' => intval($volume[0] / 1000),
-                'date' => date('Y-m-d H:i:s', intval($volume[0] / 1000)),
+                'date' => gmdate('Y-m-d H:i:s', intval($volume[0] / 1000)), // Usar UTC
                 'volume' => $volume[1],
                 'formatted_volume' => $this->formatVolume($volume[1]),
             ];
@@ -250,7 +250,7 @@ class BitcoinPriceService
         return array_map(function ($marketCap) {
             return [
                 'timestamp' => intval($marketCap[0] / 1000),
-                'date' => date('Y-m-d H:i:s', intval($marketCap[0] / 1000)),
+                'date' => gmdate('Y-m-d H:i:s', intval($marketCap[0] / 1000)), // Usar UTC
                 'market_cap' => $marketCap[1],
                 'formatted_market_cap' => $this->formatMarketCap($marketCap[1]),
             ];

@@ -71,13 +71,13 @@ class BitcoinPriceHistoryResource extends Resource
             )
             ->columns([
                 TextColumn::make('timestamp')
-                    ->label('Data (BR)')
+                    ->label('Data (UTC)')
                     ->formatStateUsing(function ($state) {
-                        return Carbon::parse($state)->setTimezone('America/Sao_Paulo')->format('d/m/Y');
+                        return Carbon::parse($state)->format('d/m/Y');
                     })
                     ->sortable()
                     ->searchable()
-                    ->tooltip('Data convertida para fuso brasileiro'),
+                    ->tooltip('Data em UTC (sem conversão de fuso horário)'),
                 TextColumn::make('close')
                     ->label('Fechamento')
                     ->formatStateUsing(function ($state) {
