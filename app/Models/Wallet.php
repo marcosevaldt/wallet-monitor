@@ -64,15 +64,4 @@ class Wallet extends Model
     {
         return $this->hasMany(ImportJob::class);
     }
-
-    /**
-     * Calcula o saldo total da carteira baseado nas transações.
-     */
-    public function getCalculatedBalanceAttribute(): float
-    {
-        $inputs = $this->transactions()->where('type', 'input')->sum('value');
-        $outputs = $this->transactions()->where('type', 'output')->sum('value');
-        
-        return ($inputs - $outputs) / 100000000; // Converter para BTC
-    }
 } 

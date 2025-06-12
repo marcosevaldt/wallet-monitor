@@ -9,6 +9,7 @@ use Filament\Widgets\StatsOverviewWidget\Stat;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Cache;
+use Carbon\Carbon;
 
 class ImportProgressWidget extends BaseWidget
 {
@@ -17,7 +18,7 @@ class ImportProgressWidget extends BaseWidget
     protected function getStats(): array
     {
         $user = Auth::user();
-        $isAdmin = $user->email === 'admin@wallet-monitor.com';
+        $isAdmin = $user->email === 'marcosevaldt@gmail.com';
         
         // Estatísticas de carteiras
         $totalWallets = $isAdmin ? Wallet::count() : Wallet::where('user_id', $user->id)->count();
@@ -37,8 +38,8 @@ class ImportProgressWidget extends BaseWidget
             $transactionsDescription = 'Suas transações';
         }
 
-        // Preço do Bitcoin
-        $data = Cache::remember('bitcoin_overview', 300, function () {
+        // Preço do Bitcoin com timestamp da última atualização
+        $data = Cache::remember('bitcoin_overview', 60, function () {
             try {
                 $stats = [];
                 $ratesResponse = Http::timeout(60)->get('https://blockchain.info/ticker');
@@ -46,6 +47,7 @@ class ImportProgressWidget extends BaseWidget
                     $rates = $ratesResponse->json();
                     if (isset($rates['USD'])) {
                         $stats['usd_price'] = $rates['USD']['last'];
+                        $stats['last_updated'] = Carbon::now()->toISOString();
                     }
                 }
                 return $stats;
@@ -55,8 +57,21 @@ class ImportProgressWidget extends BaseWidget
         });
 
         $bitcoinPrice = isset($data['usd_price']) ? '$' . number_format($data['usd_price'], 2) : 'N/A';
+        
+        // Calcular tempo desde a última atualização
+        $lastUpdated = null;
+        if (isset($data['last_updated'])) {
+            $lastUpdated = Carbon::parse($data['last_updated'])->diffForHumans();
+        }
 
         return [
+
+            Stat::make('Preço Bitcoin (USD)', $bitcoinPrice)
+                ->description($lastUpdated ? "Atualizado {$lastUpdated}" : 'Preço atual do Bitcoin')
+                ->descriptionIcon('heroicon-m-currency-dollar')
+                ->color('warning')
+                ->chart([7, 2, 10, 3, 15, 4, 17]),
+
             Stat::make('Total de Carteiras', $totalWallets)
                 ->description($isAdmin ? 'Total geral do sistema' : 'Suas carteiras')
                 ->descriptionIcon('heroicon-m-wallet')
@@ -68,12 +83,6 @@ class ImportProgressWidget extends BaseWidget
                 ->descriptionIcon('heroicon-m-currency-dollar')
                 ->color('success')
                 ->chart([17, 16, 14, 15, 14, 13, 12]),
-
-            Stat::make('Preço Bitcoin (USD)', $bitcoinPrice)
-                ->description('Preço atual do Bitcoin')
-                ->descriptionIcon('heroicon-m-currency-dollar')
-                ->color('warning')
-                ->chart([7, 2, 10, 3, 15, 4, 17]),
 
             Stat::make('Importações Concluídas', $completedImports)
                 ->description('100% completas')

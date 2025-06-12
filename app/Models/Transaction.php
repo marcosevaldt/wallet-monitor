@@ -46,20 +46,4 @@ class Transaction extends Model
     {
         return $this->belongsTo(Wallet::class);
     }
-
-    /**
-     * Formata o valor em BTC.
-     */
-    public function getBtcValueAttribute(): float
-    {
-        return $this->value / 100000000; // Converter satoshis para BTC
-    }
-
-    /**
-     * Formata o valor em formato legível.
-     */
-    public function getFormattedValueAttribute(): string
-    {
-        return number_format($this->btc_value, 8) . ' BTC';
-    }
 } 
