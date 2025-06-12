@@ -19,8 +19,6 @@ class BitcoinPriceHistory extends Model
         'high',
         'low',
         'close',
-        'volume',
-        'market_cap',
         'currency',
         'is_daily',
     ];
@@ -32,8 +30,6 @@ class BitcoinPriceHistory extends Model
         'high' => 'decimal:2',
         'low' => 'decimal:2',
         'close' => 'decimal:2',
-        'volume' => 'decimal:2',
-        'market_cap' => 'decimal:2',
         'is_daily' => 'boolean',
     ];
 

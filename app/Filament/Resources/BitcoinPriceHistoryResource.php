@@ -53,12 +53,6 @@ class BitcoinPriceHistoryResource extends Resource
                     ->label('Preço Mínimo (USD)')
                     ->prefix('$')
                     ->disabled(),
-                Forms\Components\TextInput::make('volume')
-                    ->label('Volume (24h)')
-                    ->disabled(),
-                Forms\Components\TextInput::make('market_cap')
-                    ->label('Market Cap')
-                    ->disabled(),
                 Forms\Components\TextInput::make('currency')
                     ->label('Moeda')
                     ->disabled(),
@@ -112,38 +106,6 @@ class BitcoinPriceHistoryResource extends Resource
                         return '$' . number_format($state, 2, ',', '.');
                     })
                     ->color('danger')
-                    ->sortable()
-                    ->toggleable(),
-                TextColumn::make('volume')
-                    ->label('Volume 24h')
-                    ->formatStateUsing(function ($state) {
-                        if (!$state) return '-';
-                        if ($state >= 1000000000) {
-                            return '$' . number_format($state / 1000000000, 2, ',', '.') . 'B';
-                        } elseif ($state >= 1000000) {
-                            return '$' . number_format($state / 1000000, 2, ',', '.') . 'M';
-                        } elseif ($state >= 1000) {
-                            return '$' . number_format($state / 1000, 2, ',', '.') . 'K';
-                        }
-                        return '$' . number_format($state, 2, ',', '.');
-                    })
-                    ->color('info')
-                    ->sortable()
-                    ->toggleable(),
-                TextColumn::make('market_cap')
-                    ->label('Market Cap')
-                    ->formatStateUsing(function ($state) {
-                        if (!$state) return '-';
-                        if ($state >= 1000000000000) {
-                            return '$' . number_format($state / 1000000000000, 2, ',', '.') . 'T';
-                        } elseif ($state >= 1000000000) {
-                            return '$' . number_format($state / 1000000000, 2, ',', '.') . 'B';
-                        } elseif ($state >= 1000000) {
-                            return '$' . number_format($state / 1000000, 2, ',', '.') . 'M';
-                        }
-                        return '$' . number_format($state, 2, ',', '.');
-                    })
-                    ->color('warning')
                     ->sortable()
                     ->toggleable(),
                 TextColumn::make('currency')
@@ -207,49 +169,6 @@ class BitcoinPriceHistoryResource extends Resource
                             $indicators[] = 'Max: $' . number_format($data['price_max'], 2);
                         }
                         return $indicators ? 'Preço de Fechamento: ' . implode(' - ', $indicators) : null;
-                    }),
-                
-                Tables\Filters\Filter::make('volume_range')
-                    ->label('Faixa de Volume de Negociação (24h)')
-                    ->form([
-                        Forms\Components\Grid::make(6)
-                            ->schema([
-                                Forms\Components\TextInput::make('volume_min')
-                                    ->label('Volume Mínimo de Negociação (USD)')
-                                    ->numeric()
-                                    ->step(1000000)
-                                    ->placeholder('Ex: 1000000000')
-                                    ->helperText('Volume mínimo de negociação em dólares')
-                                    ->columnSpan(3),
-                                Forms\Components\TextInput::make('volume_max')
-                                    ->label('Volume Máximo de Negociação (USD)')
-                                    ->numeric()
-                                    ->step(1000000)
-                                    ->placeholder('Ex: 50000000000')
-                                    ->helperText('Volume máximo de negociação em dólares')
-                                    ->columnSpan(3),
-                            ]),
-                    ])
-                    ->query(function (Builder $query, array $data) {
-                        return $query
-                            ->when(
-                                $data['volume_min'],
-                                fn (Builder $query, $value) => $query->where('volume', '>=', $value),
-                            )
-                            ->when(
-                                $data['volume_max'],
-                                fn (Builder $query, $value) => $query->where('volume', '<=', $value),
-                            );
-                    })
-                    ->indicateUsing(function (array $data): ?string {
-                        $indicators = [];
-                        if ($data['volume_min'] ?? null) {
-                            $indicators[] = 'Min: $' . number_format($data['volume_min']);
-                        }
-                        if ($data['volume_max'] ?? null) {
-                            $indicators[] = 'Max: $' . number_format($data['volume_max']);
-                        }
-                        return $indicators ? 'Volume de Negociação: ' . implode(' - ', $indicators) : null;
                     }),
             ])
             ->defaultSort('timestamp', 'desc')

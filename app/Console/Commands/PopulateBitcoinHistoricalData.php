@@ -52,15 +52,14 @@ class PopulateBitcoinHistoricalData extends Command
         }
 
         try {
-            // Usar API de market chart que permite períodos maiores
-            $url = "https://api.coingecko.com/api/v3/coins/bitcoin/market_chart";
+            // Usar API OHLC que retorna dados completos (Open, High, Low, Close)
+            $url = "https://api.coingecko.com/api/v3/coins/bitcoin/ohlc";
             $params = [
                 'vs_currency' => $currency,
-                'days' => $days,
-                'interval' => 'daily'
+                'days' => $days
             ];
 
-            $this->info("📊 Buscando dados da API CoinGecko...");
+            $this->info("📊 Buscando dados OHLC da API CoinGecko...");
             $response = Http::timeout(60)->get($url, $params);
 
             if (!$response->successful()) {
@@ -70,28 +69,25 @@ class PopulateBitcoinHistoricalData extends Command
             }
 
             $data = $response->json();
-            $prices = $data['prices'] ?? [];
-            $marketCaps = $data['market_caps'] ?? [];
-            $volumes = $data['total_volumes'] ?? [];
+            
+            $this->info("📈 Total de pontos de dados OHLC: " . count($data));
 
-            $this->info("📈 Total de pontos de dados: " . count($prices));
-
-            if (empty($prices)) {
-                $this->error("❌ Nenhum dado de preço encontrado");
+            if (empty($data)) {
+                $this->error("❌ Nenhum dado OHLC encontrado");
                 return 1;
             }
 
-            // Processar e persistir dados
+            // Processar e persistir dados OHLC
             $processedCount = 0;
             $skippedCount = 0;
 
-            foreach ($prices as $index => $priceData) {
-                $timestamp = Carbon::createFromTimestampMs($priceData[0]);
-                $price = $priceData[1];
-                
-                // Buscar dados OHLC correspondentes (se disponível)
-                $marketCap = $marketCaps[$index][1] ?? null;
-                $volume = $volumes[$index][1] ?? null;
+            foreach ($data as $ohlcvData) {
+                // Formato OHLCV: [timestamp, open, high, low, close]
+                $timestamp = Carbon::createFromTimestamp($ohlcvData[0] / 1000);
+                $open = $ohlcvData[1];
+                $high = $ohlcvData[2];
+                $low = $ohlcvData[3];
+                $close = $ohlcvData[4];
 
                 // Verificar se já existe registro para esta data
                 $existingRecord = BitcoinPriceHistory::where('currency', $currency)
@@ -107,13 +103,13 @@ class PopulateBitcoinHistoricalData extends Command
                 try {
                     BitcoinPriceHistory::create([
                         'timestamp' => $timestamp,
-                        'price' => $price,
-                        'open' => $price, // Usar preço como fallback
-                        'high' => $price, // Usar preço como fallback
-                        'low' => $price,  // Usar preço como fallback
-                        'close' => $price,
-                        'volume' => $volume,
-                        'market_cap' => $marketCap,
+                        'price' => $close, // Manter compatibilidade
+                        'open' => $open,
+                        'high' => $high,
+                        'low' => $low,
+                        'close' => $close,
+                        'volume' => null, // OHLC não inclui volume
+                        'market_cap' => null,
                         'currency' => $currency,
                         'is_daily' => true,
                     ]);
@@ -127,9 +123,12 @@ class PopulateBitcoinHistoricalData extends Command
 
                 } catch (\Exception $e) {
                     $this->error("❌ Erro ao persistir registro: " . $e->getMessage());
-                    Log::error('Erro ao persistir registro histórico', [
+                    Log::error('Erro ao persistir registro histórico OHLC', [
                         'timestamp' => $timestamp,
-                        'price' => $price,
+                        'open' => $open,
+                        'high' => $high,
+                        'low' => $low,
+                        'close' => $close,
                         'error' => $e->getMessage()
                     ]);
                 }
