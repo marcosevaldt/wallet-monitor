@@ -86,7 +86,8 @@ class WalletResource extends Resource
                 Tables\Columns\TextColumn::make('name')
                     ->label('Nome')
                     ->searchable()
-                    ->sortable(),
+                    ->sortable()
+                    ->width('15%'),
                 
                 Tables\Columns\TextColumn::make('address')
                     ->label('Endereço')
@@ -94,25 +95,13 @@ class WalletResource extends Resource
                     ->copyable()
                     ->copyMessage('Endereço copiado!')
                     ->copyMessageDuration(1500)
-                    ->formatStateUsing(function ($state) {
-                        if (strlen($state) > 16) {
-                            return substr($state, 0, 8) . '...' . substr($state, -8);
-                        }
-                        return $state;
-                    })
-                    ->tooltip(function (Tables\Columns\TextColumn $column): ?string {
-                        $state = $column->getState();
-                        if (strlen($state) > 16) {
-                            return $state;
-                        }
-                        return null;
-                    })
-                    ->size('sm'),
+                    ->width('40%'),
                 
                 Tables\Columns\TextColumn::make('label')
                     ->label('Rótulo')
                     ->searchable()
-                    ->toggleable(isToggledHiddenByDefault: true),
+                    ->toggleable(isToggledHiddenByDefault: true)
+                    ->width('15%'),
                 
                 Tables\Columns\TextColumn::make('formatted_balance')
                     ->label('Saldo')
@@ -120,16 +109,8 @@ class WalletResource extends Resource
                     ->color(fn (string $state): string => match (true) {
                         str_contains($state, '0.00000000') => 'danger',
                         default => 'success',
-                    }),
-                
-                Tables\Columns\TextColumn::make('transactions_summary')
-                    ->label('Transações')
-                    ->getStateUsing(function ($record) {
-                        $send = $record->send_transactions ?? 0;
-                        $receive = $record->receive_transactions ?? 0;
-                        return "📤 {$send} | 📥 {$receive}";
                     })
-                    ->description('Enviadas | Recebidas'),
+                    ->width('15%'),
                 
                 Tables\Columns\TextColumn::make('last_import_at')
                     ->label('Última Importação')
@@ -144,14 +125,16 @@ class WalletResource extends Resource
                         return $lastJob->created_at->diffForHumans();
                     })
                     ->color(fn ($state) => $state === 'Nunca' ? 'gray' : 'success')
-                    ->sortable(),
+                    ->sortable()
+                    ->width('10%'),
                 
                 Tables\Columns\TextColumn::make('created_at')
                     ->label('Criado em')
                     ->getStateUsing(function ($record) {
                         return $record->created_at->diffForHumans();
                     })
-                    ->sortable(),
+                    ->sortable()
+                    ->width('10%'),
             ])
             ->filters([
                 Tables\Filters\SelectFilter::make('balance_status')

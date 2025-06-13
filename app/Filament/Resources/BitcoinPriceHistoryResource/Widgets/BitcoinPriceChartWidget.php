@@ -8,7 +8,7 @@ use Carbon\Carbon;
 
 class BitcoinPriceChartWidget extends ChartWidget
 {
-    protected static ?string $heading = 'Histórico do Preço de Fechamento do Bitcoin';
+    protected static ?string $heading = 'Histórico do Preço do Bitcoin (OHLC)';
 
     protected static ?int $sort = -2; // Para aparecer acima da tabela
 
@@ -56,21 +56,56 @@ class BitcoinPriceChartWidget extends ChartWidget
             ->map(function ($record) {
                 return [
                     'date' => Carbon::parse($record->timestamp)->format('d/m/Y'),
+                    'open' => (float) ($record->open ?? $record->price),
+                    'high' => (float) ($record->high ?? $record->price),
+                    'low' => (float) ($record->low ?? $record->price),
                     'close' => (float) ($record->close ?? $record->price),
                 ];
             });
 
         $dates = $data->pluck('date')->toArray();
+        $openPrices = $data->pluck('open')->toArray();
+        $highPrices = $data->pluck('high')->toArray();
+        $lowPrices = $data->pluck('low')->toArray();
         $closePrices = $data->pluck('close')->toArray();
 
         return [
             'datasets' => [
                 [
-                    'label' => 'Preço de Fechamento (USD)',
+                    'label' => 'Abertura (USD)',
+                    'data' => $openPrices,
+                    'fill' => false,
+                    'borderColor' => 'rgb(255, 99, 132)',
+                    'backgroundColor' => 'rgba(255, 99, 132, 0.2)',
+                    'tension' => 0.1,
+                    'borderWidth' => 2,
+                ],
+                [
+                    'label' => 'Máximo (USD)',
+                    'data' => $highPrices,
+                    'fill' => false,
+                    'borderColor' => 'rgb(54, 162, 235)',
+                    'backgroundColor' => 'rgba(54, 162, 235, 0.2)',
+                    'tension' => 0.1,
+                    'borderWidth' => 2,
+                ],
+                [
+                    'label' => 'Mínimo (USD)',
+                    'data' => $lowPrices,
+                    'fill' => false,
+                    'borderColor' => 'rgb(255, 205, 86)',
+                    'backgroundColor' => 'rgba(255, 205, 86, 0.2)',
+                    'tension' => 0.1,
+                    'borderWidth' => 2,
+                ],
+                [
+                    'label' => 'Fechamento (USD)',
                     'data' => $closePrices,
                     'fill' => false,
                     'borderColor' => 'rgb(75, 192, 192)',
-                    'tension' => 0.1
+                    'backgroundColor' => 'rgba(75, 192, 192, 0.2)',
+                    'tension' => 0.1,
+                    'borderWidth' => 3,
                 ],
             ],
             'labels' => $dates,
