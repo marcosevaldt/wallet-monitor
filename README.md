@@ -61,6 +61,39 @@ If you discover a security vulnerability within Laravel, please send an e-mail t
 The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
 # wallet-monitor
 
+## 📊 Estrutura de Migrations
+
+O sistema possui uma estrutura de migrations organizada e otimizada para instalações limpas:
+
+### 🎯 **Ordem Lógica**
+1. **Laravel Core** - Usuários, cache, jobs
+2. **Telescope** - Debugging e monitoramento  
+3. **Aplicação Core** - Carteiras, transações, preços, jobs de importação
+
+### 🚀 **Instalação Limpa**
+```bash
+# Limpar banco e executar todas as migrations
+php artisan migrate:fresh
+
+# Ou apenas executar migrations pendentes
+php artisan migrate
+```
+
+### 📋 **Tabelas Principais**
+- **users** - Usuários do sistema
+- **wallets** - Carteiras Bitcoin com métricas
+- **transactions** - Transações Bitcoin com tipos expandidos
+- **bitcoin_price_history** - Histórico de preços OHLC
+- **import_jobs** - Jobs de importação com tracking
+
+### ✅ **Vantagens**
+- **Consolidação**: Campos criados/removidos foram consolidados
+- **Performance**: Índices incluídos desde o início
+- **Organização**: Estrutura lógica e documentada
+- **Manutenibilidade**: Fácil de entender e modificar
+
+📖 **Documentação Completa**: `database/MIGRATIONS_STRUCTURE.md`
+
 ## Comandos Artisan
 
 ### População de Dados Históricos do Bitcoin

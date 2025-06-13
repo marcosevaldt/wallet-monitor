@@ -19,6 +19,10 @@ return new class extends Migration
             $table->string('password');
             $table->rememberToken();
             $table->timestamps();
+            
+            // Índices para performance
+            $table->index('email');
+            $table->index('name');
         });
 
         Schema::create('password_reset_tokens', function (Blueprint $table) {
@@ -46,4 +50,4 @@ return new class extends Migration
         Schema::dropIfExists('password_reset_tokens');
         Schema::dropIfExists('sessions');
     }
-};
+}; 
