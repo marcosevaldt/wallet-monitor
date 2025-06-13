@@ -86,22 +86,21 @@ class WalletResource extends Resource
                 Tables\Columns\TextColumn::make('name')
                     ->label('Nome')
                     ->searchable()
-                    ->sortable()
-                    ->width('15%'),
+                    ->sortable(),
                 
                 Tables\Columns\TextColumn::make('address')
                     ->label('Endereço')
                     ->searchable()
                     ->copyable()
+                    ->badge()
+                    ->color('gray')
                     ->copyMessage('Endereço copiado!')
-                    ->copyMessageDuration(1500)
-                    ->width('40%'),
+                    ->copyMessageDuration(1500),
                 
                 Tables\Columns\TextColumn::make('label')
                     ->label('Rótulo')
                     ->searchable()
-                    ->toggleable(isToggledHiddenByDefault: true)
-                    ->width('15%'),
+                    ->toggleable(isToggledHiddenByDefault: true),
                 
                 Tables\Columns\TextColumn::make('formatted_balance')
                     ->label('Saldo')
@@ -109,32 +108,18 @@ class WalletResource extends Resource
                     ->color(fn (string $state): string => match (true) {
                         str_contains($state, '0.00000000') => 'danger',
                         default => 'success',
-                    })
-                    ->width('15%'),
-                
-                Tables\Columns\TextColumn::make('last_import_at')
-                    ->label('Última Importação')
-                    ->getStateUsing(function ($record) {
-                        // Usar o relacionamento carregado via eager loading
-                        $lastJob = $record->importJobs->first();
-                        
-                        if (!$lastJob) {
-                            return 'Nunca';
-                        }
-                        
-                        return $lastJob->created_at->diffForHumans();
-                    })
-                    ->color(fn ($state) => $state === 'Nunca' ? 'gray' : 'success')
-                    ->sortable()
-                    ->width('10%'),
+                    }),
                 
                 Tables\Columns\TextColumn::make('created_at')
                     ->label('Criado em')
-                    ->getStateUsing(function ($record) {
-                        return $record->created_at->diffForHumans();
-                    })
-                    ->sortable()
-                    ->width('10%'),
+                    ->since()
+                    ->sortable(),
+
+                Tables\Columns\TextColumn::make('last_import_at')
+                    ->label('Última Importação')
+                    ->since()
+                    ->sortable(),
+                
             ])
             ->filters([
                 Tables\Filters\SelectFilter::make('balance_status')

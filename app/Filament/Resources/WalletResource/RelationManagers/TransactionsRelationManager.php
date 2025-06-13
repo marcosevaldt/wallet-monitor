@@ -84,21 +84,13 @@ class TransactionsRelationManager extends RelationManager
                     ->copyable()
                     ->copyMessage('Hash copiado!')
                     ->copyMessageDuration(1500)
+                    ->badge()
+                    ->color('gray')
                     ->formatStateUsing(function ($state) {
                         if (strlen($state) > 16) {
-                            return substr($state, 0, 8) . '...' . substr($state, -8);
+                            return substr($state, 0, 6) . '-' . substr($state, -6);
                         }
                         return $state;
-                    })
-                    ->tooltip(function (Tables\Columns\TextColumn $column): ?string {
-                        $state = $column->getState();
-                        if (strlen($state) > 16) {
-                            // Quebrar o hash em linhas para melhor visualização
-                            $chunkSize = 32; // 32 caracteres por linha
-                            $chunks = str_split($state, $chunkSize);
-                            return implode("\n", $chunks);
-                        }
-                        return null;
                     }),
                 
                 Tables\Columns\TextColumn::make('formatted_value')
@@ -127,24 +119,13 @@ class TransactionsRelationManager extends RelationManager
                     ->copyable()
                     ->copyMessage('Endereço copiado!')
                     ->copyMessageDuration(1500)
-                    ->formatStateUsing(function ($state) {
-                        if (strlen($state) > 16) {
-                            return substr($state, 0, 8) . '...' . substr($state, -8);
-                        }
-                        return $state;
-                    })
-                    ->tooltip(function (Tables\Columns\TextColumn $column): ?string {
-                        $state = $column->getState();
-                        if (strlen($state) > 16) {
-                            return $state;
-                        }
-                        return null;
-                    }),
+                    ->badge()
+                    ->color('gray'),
                 
                 Tables\Columns\TextColumn::make('block_height')
                     ->label('Bloco')
                     ->sortable()
-                    ->toggleable(),
+                    ->toggleable(isToggledHiddenByDefault: true),
                 
                 Tables\Columns\TextColumn::make('block_time')
                     ->label('Data/Hora')
@@ -216,9 +197,6 @@ class TransactionsRelationManager extends RelationManager
                         }
                         return $indicators ? 'Valor da Transação: ' . implode(' - ', $indicators) : null;
                     }),
-            ])
-            ->headerActions([
-                // Aqui você pode adicionar ações específicas para transações, se necessário
             ])
             ->defaultSort('block_time', 'desc')
             ->paginated([10, 25, 50]);
