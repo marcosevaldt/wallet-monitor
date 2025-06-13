@@ -220,26 +220,6 @@ class TransactionsRelationManager extends RelationManager
             ->headerActions([
                 // Aqui você pode adicionar ações específicas para transações, se necessário
             ])
-            ->actions([
-                Tables\Actions\ActionGroup::make([
-                    Tables\Actions\ViewAction::make()
-                        ->label('Ver')
-                        ->modalHeading('Detalhes da Transação'),
-                    Tables\Actions\DeleteAction::make()
-                        ->label('Excluir'),
-                ])
-                ->label('Ações')
-                ->icon('heroicon-m-ellipsis-vertical')
-                ->color('gray')
-                ->size('sm')
-                ->dropdownPlacement('bottom-end'),
-            ])
-            ->bulkActions([
-                Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make()
-                        ->label('Excluir Selecionados'),
-                ]),
-            ])
             ->defaultSort('block_time', 'desc')
             ->paginated([10, 25, 50]);
     }
