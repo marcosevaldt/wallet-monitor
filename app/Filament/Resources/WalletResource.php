@@ -29,6 +29,8 @@ class WalletResource extends Resource
 
     protected static ?string $pluralModelLabel = 'Carteiras';
 
+    protected static ?int $navigationSort = 1;
+
     public static function form(Form $form): Form
     {
         return $form
@@ -112,12 +114,13 @@ class WalletResource extends Resource
                     ->searchable()
                     ->toggleable(isToggledHiddenByDefault: true),
                 
-                Tables\Columns\TextColumn::make('balance')
-                    ->label('Saldo (BTC)')
-                    ->numeric()
-                    ->sortable()
-                    ->formatStateUsing(fn ($state) => number_format(($state ?? 0) / 100000000, 8))
-                    ->color(fn ($state) => ($state ?? 0) > 0 ? 'success' : 'danger'),
+                Tables\Columns\TextColumn::make('formatted_balance')
+                    ->label('Saldo')
+                    ->badge()
+                    ->color(fn (string $state): string => match (true) {
+                        str_contains($state, '0.00000000') => 'danger',
+                        default => 'success',
+                    }),
                 
                 Tables\Columns\TextColumn::make('transactions_summary')
                     ->label('Transações')
@@ -176,116 +179,10 @@ class WalletResource extends Resource
             ])
             ->actions([
                 Tables\Actions\ActionGroup::make([
-                    Tables\Actions\Action::make('import_transactions')
-                        ->label('Importar Transações')
-                        ->icon('heroicon-o-arrow-down-tray')
-                        ->visible(function (Wallet $record) {
-                            // Só mostrar se NÃO tem transações importadas
-                            return $record->imported_transactions == 0;
-                        })
-                        ->requiresConfirmation()
-                        ->modalHeading('Importar Transações')
-                        ->modalDescription('Deseja importar todas as transações desta carteira da blockchain? A importação será executada em background e você poderá acompanhar o progresso.')
-                        ->modalSubmitActionLabel('Sim, Importar')
-                        ->modalCancelActionLabel('Cancelar')
-                        ->action(function (Wallet $record) {
-                            // Verificar se já existe um job em execução para esta carteira
-                            if ($record->import_progress > 0 && $record->import_progress < 100) {
-                                \Filament\Notifications\Notification::make()
-                                    ->title('Importação já em andamento')
-                                    ->body('Esta carteira já possui uma importação em progresso. Aguarde a conclusão.')
-                                    ->warning()
-                                    ->send();
-                                return;
-                            }
-                            
-                            // Verificar o limite antes de iniciar (opcional - pode ser removido se preferir)
-                            $blockchainApi = new \App\Services\BlockchainApiService();
-                            $totalTransactions = $blockchainApi->getTransactionCount($record->address);
-                            $maxTransactions = \App\Jobs\ImportTransactionsJob::MAX_TOTAL_TRANSACTIONS;
-                            
-                            if ($totalTransactions > $maxTransactions) {
-                                \Filament\Notifications\Notification::make()
-                                    ->title('Limite de transações excedido')
-                                    ->body("Esta carteira possui {$totalTransactions} transações, mas o sistema só pode importar até {$maxTransactions} transações. A importação será cancelada.")
-                                    ->warning()
-                                    ->send();
-                                return;
-                            }
-                            
-                            // Iniciar importação em background com delay
-                            dispatch(new \App\Jobs\ImportTransactionsJob($record->id))
-                                ->delay(now()->addSeconds(5)); // 5 segundos de delay
-                            
-                            // Notificação inicial
-                            \Filament\Notifications\Notification::make()
-                                ->title('Importação agendada')
-                                ->body('A importação foi agendada e será iniciada em 5 segundos. Você pode acompanhar o progresso na tabela.')
-                                ->success()
-                                ->send();
-                        }),
-                    
-                    Tables\Actions\Action::make('update_transactions')
-                        ->label('Atualizar Transações')
-                        ->icon('heroicon-o-arrow-path')
-                        ->visible(function (Wallet $record) {
-                            // Só mostrar se já tem transações importadas
-                            return $record->imported_transactions > 0;
-                        })
-                        ->requiresConfirmation()
-                        ->modalHeading('Atualizar Transações')
-                        ->modalDescription('Deseja atualizar as transações desta carteira? Apenas as transações mais recentes serão importadas.')
-                        ->modalSubmitActionLabel('Sim, Atualizar')
-                        ->modalCancelActionLabel('Cancelar')
-                        ->action(function (Wallet $record) {
-                            // Verificar se já existe um job em execução para esta carteira
-                            if ($record->import_progress > 0 && $record->import_progress < 100) {
-                                \Filament\Notifications\Notification::make()
-                                    ->title('Importação já em andamento')
-                                    ->body('Esta carteira já possui uma importação em progresso. Aguarde a conclusão.')
-                                    ->warning()
-                                    ->send();
-                                return;
-                            }
-                            
-                            // Iniciar atualização em background
-                            dispatch(new \App\Jobs\UpdateTransactionsJob($record->id))
-                                ->delay(now()->addSeconds(2)); // 2 segundos de delay
-                            
-                            // Notificação inicial
-                            \Filament\Notifications\Notification::make()
-                                ->title('Atualização agendada')
-                                ->body('A atualização das transações foi agendada e será iniciada em 2 segundos. Apenas as transações mais recentes serão importadas.')
-                                ->success()
-                                ->send();
-                        }),
-                    
-                    Tables\Actions\Action::make('refresh_balance')
-                        ->label('Atualizar Saldo')
-                        ->icon('heroicon-o-currency-dollar')
-                        ->action(function (Wallet $record) {
-                            $blockchainApi = new \App\Services\BlockchainApiService();
-                            $balance = $blockchainApi->getBalance($record->address);
-                            
-                            $record->update(['balance' => $balance]);
-                            
-                            \Filament\Notifications\Notification::make()
-                                ->title('Saldo atualizado')
-                                ->body('O saldo da carteira foi atualizado com sucesso.')
-                                ->success()
-                                ->send();
-                        }),
-                    
                     Tables\Actions\Action::make('view_transactions')
                         ->label('Ver Transações')
                         ->icon('heroicon-o-list-bullet')
                         ->url(fn (Wallet $record): string => route('filament.admin.resources.wallets.edit', $record) . '?activeTab=transactions'),
-                    
-                    Tables\Actions\Action::make('wallet_details')
-                        ->label('Informações Detalhadas')
-                        ->icon('heroicon-o-information-circle')
-                        ->url(fn (Wallet $record): string => route('filament.admin.resources.wallets.details', $record))
-                        ->openUrlInNewTab(),
                     
                     Tables\Actions\EditAction::make()
                         ->label('Editar Carteira')
@@ -330,7 +227,6 @@ class WalletResource extends Resource
             'index' => Pages\ListWallets::route('/'),
             'create' => Pages\CreateWallet::route('/create'),
             'edit' => Pages\EditWallet::route('/{record}/edit'),
-            'details' => Pages\WalletDetails::route('/{record}/details'),
         ];
     }
 }

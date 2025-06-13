@@ -64,4 +64,13 @@ class Wallet extends Model
     {
         return $this->hasMany(ImportJob::class);
     }
+
+    /**
+     * Formata o saldo em formato legível.
+     */
+    public function getFormattedBalanceAttribute(): string
+    {
+        $btcValue = ($this->balance ?? 0) / 100000000; // Converter satoshis para BTC
+        return number_format($btcValue, 8) . ' BTC';
+    }
 } 
