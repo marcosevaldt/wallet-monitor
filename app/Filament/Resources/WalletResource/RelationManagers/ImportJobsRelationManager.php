@@ -59,17 +59,18 @@ class ImportJobsRelationManager extends RelationManager
                     })
                     ->color('success'),
                 
-                Tables\Columns\TextColumn::make('transactions_send')
+                Tables\Columns\TextColumn::make('transactions_receive')
                     ->label('Entradas')
+                    ->getStateUsing(function ($record) {
+                        return "📤 {$record->receive_transactions}";
+                    }),
+
+                Tables\Columns\TextColumn::make('transactions_send')
+                    ->label('Saídas')
                     ->getStateUsing(function ($record) {
                         return "📤 {$record->send_transactions}";
                     }),
 
-                Tables\Columns\TextColumn::make('transactions_receive')
-                    ->label('Saídas')
-                    ->getStateUsing(function ($record) {
-                        return "📤 {$record->receive_transactions}";
-                    }),
                 
                 Tables\Columns\TextColumn::make('created_at')
                     ->label('Solicitado em')
