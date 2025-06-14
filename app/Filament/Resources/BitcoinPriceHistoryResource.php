@@ -175,14 +175,6 @@ class BitcoinPriceHistoryResource extends Resource
                     }),
             ])
             ->defaultSort('timestamp', 'desc')
-            ->actions([
-                Tables\Actions\ActionGroup::make([
-                    Tables\Actions\ViewAction::make()
-                        ->label('Ver Detalhes')
-                        ->icon('heroicon-o-eye'),
-                ]),
-            ])
-            ->bulkActions([])
             ->striped()
             ->paginated([10, 25, 50, 100]);
     }
@@ -190,8 +182,7 @@ class BitcoinPriceHistoryResource extends Resource
     public static function getPages(): array
     {
         return [
-            'index' => Pages\ListBitcoinPriceHistories::route('/'),
-            'view' => Pages\ViewBitcoinPriceHistory::route('/{record}'),
+            'index' => Pages\ListBitcoinPriceHistories::route('/')
         ];
     }
 }
