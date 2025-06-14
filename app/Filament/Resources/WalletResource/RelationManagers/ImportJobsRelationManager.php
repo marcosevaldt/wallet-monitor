@@ -67,9 +67,6 @@ class ImportJobsRelationManager extends RelationManager
                         return "📤 {$send} | 📥 {$receive}";
                     }),
                 
-                Tables\Columns\TextColumn::make('duration')
-                    ->label('Duração'),
-                
                 Tables\Columns\TextColumn::make('created_at')
                     ->label('Solicitado em')
                     ->since()

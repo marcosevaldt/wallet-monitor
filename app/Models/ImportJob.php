@@ -35,28 +35,6 @@ class ImportJob extends Model
         return $this->belongsTo(Wallet::class);
     }
 
-    public function getDurationAttribute(): string
-    {
-        if (!$this->started_at) {
-            return 'N/A';
-        }
-
-        $endTime = $this->completed_at ?? now();
-        $duration = $this->started_at->diffInSeconds($endTime);
-
-        if ($duration < 60) {
-            return "{$duration}s";
-        } elseif ($duration < 3600) {
-            $minutes = floor($duration / 60);
-            $seconds = $duration % 60;
-            return "{$minutes}m {$seconds}s";
-        } else {
-            $hours = floor($duration / 3600);
-            $minutes = floor(($duration % 3600) / 60);
-            return "{$hours}h {$minutes}m";
-        }
-    }
-
     public function getJobTypeLabelAttribute(): string
     {
         return match ($this->job_type) {
