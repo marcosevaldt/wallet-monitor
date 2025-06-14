@@ -63,12 +63,10 @@ class ImportJobsRelationManager extends RelationManager
                         $send = $record->send_transactions ?? 0;
                         $receive = $record->receive_transactions ?? 0;
                         return "📤 {$send} | 📥 {$receive}";
-                    })
-                    ->description('Enviadas | Recebidas'),
+                    }),
                 
                 Tables\Columns\TextColumn::make('duration')
-                    ->label('Duração')
-                    ->description(fn ($record) => $record->started_at ? $record->started_at->format('d/m/Y H:i') : 'N/A'),
+                    ->label('Duração'),
                 
                 Tables\Columns\TextColumn::make('created_at')
                     ->label('Solicitado em')
@@ -78,8 +76,7 @@ class ImportJobsRelationManager extends RelationManager
                 Tables\Columns\TextColumn::make('completed_at')
                     ->label('Concluído em')
                     ->dateTime('d/m/Y H:i')
-                    ->sortable()
-                    ->color(fn ($state) => $state ? 'success' : 'gray'),
+                    ->sortable(),
             ])
             ->filters([
                 Tables\Filters\SelectFilter::make('job_type')
@@ -97,17 +94,6 @@ class ImportJobsRelationManager extends RelationManager
                         'completed' => 'Concluído',
                         'failed' => 'Falhou',
                     ]),
-            ])
-            ->headerActions([
-                // Sem ações no cabeçalho - apenas visualização do histórico
-            ])
-            ->actions([
-                // Apenas visualização - sem ações de exclusão
-            ])
-            ->bulkActions([
-                Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
-                ]),
             ])
             ->defaultSort('created_at', 'desc')
             ->paginated([10, 25, 50]);
