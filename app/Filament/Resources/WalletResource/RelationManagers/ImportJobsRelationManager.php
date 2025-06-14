@@ -54,7 +54,9 @@ class ImportJobsRelationManager extends RelationManager
                 
                 Tables\Columns\TextColumn::make('imported_transactions')
                     ->label('Importadas')
-                    ->description(fn ($record) => "Total: {$record->total_transactions}")
+                    ->getStateUsing(function ($record) {
+                        return "{$record->imported_transactions}/{$record->total_transactions}";
+                    })
                     ->color('success'),
                 
                 Tables\Columns\TextColumn::make('transactions_summary')
@@ -70,12 +72,12 @@ class ImportJobsRelationManager extends RelationManager
                 
                 Tables\Columns\TextColumn::make('created_at')
                     ->label('Solicitado em')
-                    ->dateTime('d/m/Y H:i')
+                    ->since()
                     ->sortable(),
                 
                 Tables\Columns\TextColumn::make('completed_at')
                     ->label('Concluído em')
-                    ->dateTime('d/m/Y H:i')
+                    ->since()
                     ->sortable(),
             ])
             ->filters([
